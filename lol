@@ -413,8 +413,8 @@ local function createStealthTeleport()
             
             print("Расстояние до игрока: " .. distance .. " | Позиция игрока: " .. tostring(targetPos) .. " | Моя позиция: " .. tostring(currentPos))
             
-            if distance > 5 then -- Если далеко, используем BodyVelocity для движения
-                -- Используем BodyVelocity для плавного движения
+            if distance > 5 then -- Если далеко, используем BodyVelocity для быстрого движения
+                -- Используем BodyVelocity для быстрого движения
                 local bv = root:FindFirstChild("BodyVelocity")
                 if not bv then
                     bv = Instance.new("BodyVelocity", root)
@@ -422,10 +422,10 @@ local function createStealthTeleport()
                 end
                 
                 local direction = (targetPos - currentPos).Unit
-                local moveSpeed = math.min(distance * 0.15, 40)
+                local moveSpeed = math.min(distance * 0.5, 80) -- Увеличиваем скорость
                 bv.Velocity = direction * moveSpeed
                 
-                print("Двигаемся к игроку со скоростью: " .. moveSpeed)
+                print("Быстро двигаемся к игроку со скоростью: " .. moveSpeed)
             else
                 -- Если близко, останавливаемся и следуем за игроком
                 local bv = root:FindFirstChild("BodyVelocity")
@@ -498,11 +498,11 @@ local function startTeleport()
                 local distance = (targetPos - currentPos).Magnitude
                 
                 if distance > 2 then
-                    -- Плавно приближаемся к игроку
+                    -- Быстро приближаемся к игроку
                     local direction = (targetPos - currentPos).Unit
-                    local moveSpeed = math.min(distance * 0.2, 30)
+                    local moveSpeed = math.min(distance * 0.4, 60)
                     
-                    -- Используем BodyVelocity для плавного движения
+                    -- Используем BodyVelocity для быстрого движения
                     local bv = root:FindFirstChild("BodyVelocity")
                     if not bv then
                         bv = Instance.new("BodyVelocity", root)
@@ -545,9 +545,27 @@ local function stopTeleport()
     
     if root and TeleportConfig.OriginalPosition then
         -- Возвращаемся на оригинальную позицию
+        print("Возвращаемся на исходную позицию: " .. tostring(TeleportConfig.OriginalPosition))
+        
+        -- Используем BodyVelocity для плавного возврата
+        local returnBv = Instance.new("BodyVelocity", root)
+        returnBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+        
+        local currentPos = root.Position
+        local returnPos = TeleportConfig.OriginalPosition
+        local returnDirection = (returnPos - currentPos).Unit
+        local returnSpeed = 50
+        
+        returnBv.Velocity = returnDirection * returnSpeed
+        
+        -- Ждем немного и затем удаляем BodyVelocity
+        task.wait(1)
+        returnBv:Destroy()
+        
+        -- Финальная телепортация на точную позицию
         root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
         TeleportConfig.OriginalPosition = nil
-        print("Возврат на исходную позицию")
+        print("Возврат на исходную позицию завершен")
     end
     
     -- Отключаем все соединения
@@ -1664,6 +1682,50 @@ forceTeleportBtn.MouseButton1Click:Connect(function()
     forceTeleportBtn.Text = "Телепортация выполнена!"
     task.wait(2)
     forceTeleportBtn.Text = "ПРИНУДИТЕЛЬНАЯ ТЕЛЕПОРТАЦИЯ"
+end)
+
+-- Кнопка для быстрого возврата на исходную позицию
+local returnToStartBtn = Instance.new("TextButton", innerContainer)
+returnToStartBtn.Size = UDim2.new(1, -10, 0, 28)
+returnToStartBtn.Text = "ВЕРНУТЬСЯ НА ИСХОДНУЮ ПОЗИЦИЮ"
+returnToStartBtn.Font = Enum.Font.GothamBold
+returnToStartBtn.TextSize = 14
+returnToStartBtn.TextColor3 = Color3.new(1,1,1)
+returnToStartBtn.BackgroundColor3 = Color3.fromRGB(100,100,255)
+returnToStartBtn.AutoButtonColor = false
+Instance.new("UICorner", returnToStartBtn).CornerRadius = UDim.new(0,6)
+
+returnToStartBtn.MouseButton1Click:Connect(function()
+    if not TeleportConfig.OriginalPosition then
+        returnToStartBtn.Text = "Нет сохраненной позиции!"
+        task.wait(2)
+        returnToStartBtn.Text = "ВЕРНУТЬСЯ НА ИСХОДНУЮ ПОЗИЦИЮ"
+        return
+    end
+    
+    local char = Players.LocalPlayer.Character
+    if not char then
+        returnToStartBtn.Text = "Персонаж не найден!"
+        task.wait(2)
+        returnToStartBtn.Text = "ВЕРНУТЬСЯ НА ИСХОДНУЮ ПОЗИЦИЮ"
+        return
+    end
+    
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then
+        returnToStartBtn.Text = "HumanoidRootPart не найден!"
+        task.wait(2)
+        returnToStartBtn.Text = "ВЕРНУТЬСЯ НА ИСХОДНУЮ ПОЗИЦИЮ"
+        return
+    end
+    
+    -- Быстрый возврат на исходную позицию
+    root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
+    TeleportConfig.OriginalPosition = nil
+    print("Быстрый возврат на исходную позицию выполнен!")
+    returnToStartBtn.Text = "Возврат выполнен!"
+    task.wait(2)
+    returnToStartBtn.Text = "ВЕРНУТЬСЯ НА ИСХОДНУЮ ПОЗИЦИЮ"
 end)
 
 -- Обновляем GUI при выборе игрока
