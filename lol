@@ -85,6 +85,7 @@ local originalJumpPower = 50
 -- Переменные для телепортации
 local isTeleporting = false
 local teleportConnections = {}
+local playerSelectionWindow = nil -- Окно выбора игрока
 
 local function startFly()
     local plr = Players.LocalPlayer
@@ -362,6 +363,8 @@ end
 
 -- Новая система телепортации к игрокам
 local function createPlayerSelectionWindow()
+    print("=== СОЗДАНИЕ ОКНА ВЫБОРА ИГРОКА ===")
+    
     -- Закрываем предыдущее окно если оно открыто
     if playerSelectionWindow then
         playerSelectionWindow:Destroy()
@@ -369,7 +372,11 @@ local function createPlayerSelectionWindow()
     end
     
     -- Создаем новое окно
-    playerSelectionWindow = Instance.new("Frame", CoreGui)
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "PlayerSelectionScreenGui"
+    screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+    
+    playerSelectionWindow = Instance.new("Frame", screenGui)
     playerSelectionWindow.Name = "PlayerSelectionWindow"
     playerSelectionWindow.Size = UDim2.new(0, 350, 0, 500)
     playerSelectionWindow.Position = UDim2.new(0.5, -175, 0.5, -250)
@@ -377,6 +384,10 @@ local function createPlayerSelectionWindow()
     playerSelectionWindow.BorderSizePixel = 0
     playerSelectionWindow.ZIndex = 1000
     Instance.new("UICorner", playerSelectionWindow).CornerRadius = UDim.new(0, 8)
+    
+    print("Окно создано: " .. tostring(playerSelectionWindow))
+    print("Позиция окна: " .. tostring(playerSelectionWindow.Position))
+    print("Размер окна: " .. tostring(playerSelectionWindow.Size))
     
     -- Заголовок окна
     local titleBar = Instance.new("Frame", playerSelectionWindow)
@@ -494,6 +505,9 @@ local function createPlayerSelectionWindow()
             end
         end
     end)
+    
+    print("=== ОКНО ВЫБОРА ИГРОКА СОЗДАНО УСПЕШНО ===")
+    print("Количество игроков в списке: " .. #alivePlayers)
 end
 
 local function startTeleport()
@@ -572,66 +586,27 @@ end
 local function getAlivePlayers()
     local alivePlayers = {}
     
-    -- Безопасная проверка Players сервиса
-    if not Players then
-        print("Players service is nil!")
+    -- Простая и надежная проверка
+    if not Players or not Players.LocalPlayer then
         return alivePlayers
     end
     
     local allPlayers = Players:GetPlayers()
     if not allPlayers then
-        print("Players:GetPlayers() returned nil!")
         return alivePlayers
     end
     
-    print("Total players on server: " .. tostring(#allPlayers))
-    
-    -- Проверяем, что LocalPlayer существует
-    if not Players.LocalPlayer then
-        print("LocalPlayer is nil!")
-        return alivePlayers
-    end
-    
-    print("Local player: " .. tostring(Players.LocalPlayer.Name))
-    
-    for i, player in ipairs(allPlayers) do
-        print("Processing player " .. tostring(i))
-        
-        if not player then
-            print("Player " .. tostring(i) .. " is nil, skipping")
-            continue
-        end
-        
-        -- Проверяем, что у игрока есть имя
-        if not player.Name then
-            print("Player " .. tostring(i) .. " has no name, skipping")
-            continue
-        end
-        
-        print("Checking player: " .. tostring(player.Name))
-        
-        -- Безопасное сравнение с LocalPlayer
-        if player ~= Players.LocalPlayer then
-            print("Player is not local player")
-            
-            -- Простая проверка на живого игрока
+    for _, player in ipairs(allPlayers) do
+        if player and player ~= Players.LocalPlayer then
             if player.Character and player.Character:FindFirstChild("Humanoid") then
                 local humanoid = player.Character:FindFirstChild("Humanoid")
                 if humanoid.Health > 0 then
-                    print("Player is alive: " .. tostring(player.Name))
                     table.insert(alivePlayers, player)
-                else
-                    print("Player is not alive: " .. tostring(player.Name))
                 end
-            else
-                print("Player has no character or humanoid: " .. tostring(player.Name))
             end
-        else
-            print("Player is local player, skipping")
         end
     end
     
-    print("Found " .. tostring(#alivePlayers) .. " alive players")
     return alivePlayers
 end
 
@@ -1480,6 +1455,7 @@ selectPlayerBtn.AutoButtonColor = false
 Instance.new("UICorner", selectPlayerBtn).CornerRadius = UDim.new(0,6)
 
 selectPlayerBtn.MouseButton1Click:Connect(function()
+    print("=== НАЖАТА КНОПКА ВЫБОРА ИГРОКА ===")
     createPlayerSelectionWindow()
 end)
 
