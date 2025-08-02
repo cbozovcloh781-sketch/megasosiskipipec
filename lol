@@ -516,6 +516,9 @@ local function stopTeleport()
     -- Удаляем BodyVelocity если он есть
     local bv = root and root:FindFirstChild("BodyVelocity")
     if bv then
+        -- Плавно останавливаем скорость
+        bv.Velocity = Vector3.new(0, 0, 0)
+        task.wait(0.1) -- Ждем немного для плавной остановки
         bv:Destroy()
     end
     
@@ -572,6 +575,9 @@ local function stopTeleport()
                 -- Достигли исходной позиции (в пределах 10 единиц)
                 local returnBv = root:FindFirstChild("BodyVelocity")
                 if returnBv then
+                    -- Плавно останавливаем скорость
+                    returnBv.Velocity = Vector3.new(0, 0, 0)
+                    task.wait(0.1) -- Ждем немного для плавной остановки
                     returnBv:Destroy()
                 end
                 
@@ -1848,6 +1854,9 @@ returnToStartBtn.MouseButton1Click:Connect(function()
             -- Достигли исходной позиции (в пределах 10 единиц)
             local returnBv = root:FindFirstChild("BodyVelocity")
             if returnBv then
+                -- Плавно останавливаем скорость
+                returnBv.Velocity = Vector3.new(0, 0, 0)
+                task.wait(0.1) -- Ждем немного для плавной остановки
                 returnBv:Destroy()
             end
             
