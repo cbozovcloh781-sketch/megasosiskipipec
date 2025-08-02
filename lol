@@ -387,11 +387,9 @@ local function createStealthTeleport()
     isTeleporting = true
     print("Скрытая телепортация к " .. TeleportConfig.TargetPlayer.Name .. " начата")
     
-    -- Сохраняем оригинальную позицию
-    if not TeleportConfig.OriginalPosition then
-        TeleportConfig.OriginalPosition = root.Position
-        print("Сохранена позиция: " .. tostring(TeleportConfig.OriginalPosition))
-    end
+    -- Сохраняем оригинальную позицию (всегда перезаписываем)
+    TeleportConfig.OriginalPosition = root.Position
+    print("Сохранена позиция: " .. tostring(TeleportConfig.OriginalPosition))
     
     -- Включаем NoClip для прохождения сквозь препятствия
     if not isNoClipping then
@@ -454,11 +452,9 @@ local function startTeleport()
     isTeleporting = true
     print("Телепортация к " .. TeleportConfig.TargetPlayer.Name .. " начата")
     
-    -- Сохраняем оригинальную позицию
-    if not TeleportConfig.OriginalPosition then
-        TeleportConfig.OriginalPosition = root.Position
-        print("Сохранена позиция: " .. tostring(TeleportConfig.OriginalPosition))
-    end
+    -- Сохраняем оригинальную позицию (всегда перезаписываем)
+    TeleportConfig.OriginalPosition = root.Position
+    print("Сохранена позиция: " .. tostring(TeleportConfig.OriginalPosition))
     
     -- Включаем NoClip для телепортации
     if not isNoClipping then
@@ -601,11 +597,8 @@ local function stopTeleport()
                 root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
                 TeleportConfig.OriginalPosition = nil
                 
-                -- Отключаем NoClip после возврата
-                if isNoClipping then
-                    stopNoClip()
-                    print("NoClip отключен после возврата")
-                end
+                -- НЕ отключаем NoClip после возврата - оставляем его включенным для следующих телепортаций
+                print("NoClip остается включенным для следующих телепортаций")
                 
                 -- Отключаем цикл возврата
                 if returnLoop then
@@ -637,10 +630,8 @@ local function stopTeleport()
         humanoid.JumpPower = 50
     end
     
-    -- Останавливаем NoClip если он был включен для телепортации
-    if isNoClipping and TeleportConfig.UseStealthMode then
-        stopNoClip()
-    end
+    -- НЕ отключаем NoClip - оставляем его включенным для следующих телепортаций
+    print("NoClip остается включенным для следующих телепортаций")
     
     -- Обновляем GUI - кнопка "СТАРТ ТЕЛЕПОРТ" становится зеленой
     if startTeleportBtn then
@@ -1901,11 +1892,8 @@ returnToStartBtn.MouseButton1Click:Connect(function()
             root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
             TeleportConfig.OriginalPosition = nil
             
-            -- Отключаем NoClip после возврата
-            if isNoClipping then
-                stopNoClip()
-                print("NoClip отключен после возврата")
-            end
+            -- НЕ отключаем NoClip после возврата - оставляем его включенным для следующих телепортаций
+            print("NoClip остается включенным для следующих телепортаций")
             
             -- Отключаем цикл возврата
             if returnLoop then
