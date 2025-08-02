@@ -382,8 +382,9 @@ local function createPlayerSelectionWindow()
     playerSelectionWindow.Name = "PlayerSelectionWindow"
     playerSelectionWindow.Size = UDim2.new(0, 350, 0, 500)
     playerSelectionWindow.Position = UDim2.new(0.5, -175, 0.5, -250)
-    playerSelectionWindow.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-    playerSelectionWindow.BorderSizePixel = 0
+    playerSelectionWindow.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    playerSelectionWindow.BorderSizePixel = 2
+    playerSelectionWindow.BorderColor3 = Color3.fromRGB(100, 100, 120)
     playerSelectionWindow.ZIndex = 1000
     Instance.new("UICorner", playerSelectionWindow).CornerRadius = UDim.new(0, 8)
     
@@ -405,9 +406,9 @@ local function createPlayerSelectionWindow()
     titleText.Size = UDim2.new(1, -60, 1, 0)
     titleText.Position = UDim2.new(0, 20, 0, 0)
     titleText.BackgroundTransparency = 1
-    titleText.Text = "Выберите игрока для телепортации"
+    titleText.Text = "ВЫБЕРИТЕ ИГРОКА ДЛЯ ТЕЛЕПОРТАЦИИ"
     titleText.Font = Enum.Font.GothamBold
-    titleText.TextSize = 16
+    titleText.TextSize = 18
     titleText.TextColor3 = Color3.new(1, 1, 1)
     titleText.TextXAlignment = Enum.TextXAlignment.Left
     
@@ -463,13 +464,16 @@ local function createPlayerSelectionWindow()
     
     print("Найдено игроков для отображения: " .. #alivePlayers)
     
+    -- Обновляем заголовок с количеством игроков
+    titleText.Text = "ВЫБЕРИТЕ ИГРОКА ДЛЯ ТЕЛЕПОРТАЦИИ (" .. #alivePlayers .. " игроков)"
+    
     if #alivePlayers == 0 then
         local noPlayersText = Instance.new("TextLabel", scrollFrame)
-        noPlayersText.Size = UDim2.new(1, 0, 0, 40)
-        noPlayersText.Text = "Нет других игроков на сервере"
-        noPlayersText.Font = Enum.Font.Gotham
-        noPlayersText.TextSize = 14
-        noPlayersText.TextColor3 = Color3.fromRGB(150, 150, 150)
+        noPlayersText.Size = UDim2.new(1, 0, 0, 50)
+        noPlayersText.Text = "НЕТ ДРУГИХ ИГРОКОВ НА СЕРВЕРЕ"
+        noPlayersText.Font = Enum.Font.GothamBold
+        noPlayersText.TextSize = 16
+        noPlayersText.TextColor3 = Color3.fromRGB(255, 100, 100)
         noPlayersText.BackgroundTransparency = 1
         noPlayersText.TextXAlignment = Enum.TextXAlignment.Center
     else
@@ -478,26 +482,28 @@ local function createPlayerSelectionWindow()
             print("Создаем кнопку для игрока " .. i .. ": " .. player.Name)
             
             local playerButton = Instance.new("TextButton", scrollFrame)
-            playerButton.Size = UDim2.new(1, 0, 0, 40)
+            playerButton.Size = UDim2.new(1, 0, 0, 50)
             playerButton.Text = player.Name
             playerButton.Font = Enum.Font.GothamBold
-            playerButton.TextSize = 16
+            playerButton.TextSize = 20
             playerButton.TextColor3 = Color3.new(1, 1, 1)
-            playerButton.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+            playerButton.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
             playerButton.AutoButtonColor = false
-            playerButton.BorderSizePixel = 1
-            playerButton.BorderColor3 = Color3.fromRGB(100, 100, 120)
-            Instance.new("UICorner", playerButton).CornerRadius = UDim.new(0, 6)
+            playerButton.BorderSizePixel = 2
+            playerButton.BorderColor3 = Color3.fromRGB(150, 150, 170)
+            Instance.new("UICorner", playerButton).CornerRadius = UDim.new(0, 8)
             
             -- Эффекты при наведении
             playerButton.MouseEnter:Connect(function()
-                playerButton.BackgroundColor3 = Color3.fromRGB(80, 80, 90)
-                playerButton.BorderColor3 = Color3.fromRGB(150, 150, 170)
+                playerButton.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+                playerButton.BorderColor3 = Color3.fromRGB(200, 200, 220)
+                playerButton.TextColor3 = Color3.new(1, 1, 0) -- Желтый текст при наведении
             end)
             
             playerButton.MouseLeave:Connect(function()
-                playerButton.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
-                playerButton.BorderColor3 = Color3.fromRGB(100, 100, 120)
+                playerButton.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+                playerButton.BorderColor3 = Color3.fromRGB(150, 150, 170)
+                playerButton.TextColor3 = Color3.new(1, 1, 1) -- Белый текст
             end)
             
             -- Обработка выбора игрока
@@ -568,13 +574,8 @@ local function startTeleport()
     end
     
     if TeleportConfig.UseStealthMode then
-        -- Скрытый режим: используем полет для приближения к игроку
+        -- Скрытый режим: незаметная телепортация через Humanoid
         print("Используется скрытый режим телепортации")
-        
-        -- Включаем полет если он не включен
-        if not isFlying then
-            startFly()
-        end
         
         -- Создаем соединение для скрытой телепортации
         local stealthTeleportLoop = RunService.Heartbeat:Connect(function()
@@ -584,27 +585,29 @@ local function startTeleport()
             
             local currentTargetRoot = targetChar:FindFirstChild("HumanoidRootPart")
             if currentTargetRoot then
-                -- Плавно приближаемся к игроку через полет
                 local targetPos = currentTargetRoot.Position
                 local currentPos = root.Position
                 local distance = (targetPos - currentPos).Magnitude
                 
-                if distance > 5 then -- Если далеко, приближаемся
-                    local direction = (targetPos - currentPos).Unit
-                    local moveSpeed = math.min(distance * 0.1, 50) -- Адаптивная скорость
-                    
-                    -- Используем BodyVelocity для плавного движения
-                    local bv = root:FindFirstChild("BodyVelocity")
-                    if not bv then
-                        bv = Instance.new("BodyVelocity", root)
-                        bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                if distance > 3 then -- Если далеко, приближаемся
+                    -- Используем Humanoid для незаметного движения
+                    local humanoid = char:FindFirstChild("Humanoid")
+                    if humanoid then
+                        -- Плавно двигаемся к цели
+                        local direction = (targetPos - currentPos).Unit
+                        local moveSpeed = math.min(distance * 0.05, 20) -- Медленная скорость
+                        
+                        -- Устанавливаем скорость движения
+                        humanoid.WalkSpeed = moveSpeed
+                        
+                        -- Двигаемся в направлении цели
+                        humanoid:Move(direction)
                     end
-                    bv.Velocity = direction * moveSpeed
                 else
                     -- Если близко, останавливаемся
-                    local bv = root:FindFirstChild("BodyVelocity")
-                    if bv then
-                        bv.Velocity = Vector3.new(0, 0, 0)
+                    local humanoid = char:FindFirstChild("Humanoid")
+                    if humanoid then
+                        humanoid.WalkSpeed = 16 -- Возвращаем нормальную скорость
                     end
                 end
             end
@@ -642,6 +645,12 @@ local function stopTeleport()
     
     local root = char:FindFirstChild("HumanoidRootPart")
     
+    -- Восстанавливаем нормальную скорость движения
+    local humanoid = char and char:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = 16
+    end
+    
     -- Удаляем BodyVelocity если он есть
     local bv = root and root:FindFirstChild("BodyVelocity")
     if bv then
@@ -664,11 +673,6 @@ local function stopTeleport()
         end
     end
     teleportConnections = {}
-    
-    -- Останавливаем полет если он был включен для телепортации
-    if isFlying and TeleportConfig.UseStealthMode then
-        stopFly()
-    end
 end
 
 local function getAlivePlayers()
