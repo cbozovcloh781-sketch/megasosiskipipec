@@ -527,6 +527,12 @@ local function stopTeleport()
         local returnStartTime = tick()
         local fastPhaseComplete = false
         
+        -- Включаем NoClip для возврата
+        if not isNoClipping then
+            startNoClip()
+            print("NoClip включен для возврата на исходную позицию")
+        end
+        
         local returnLoop = RunService.Heartbeat:Connect(function()
             if not root or not root.Parent then
                 return
@@ -572,6 +578,12 @@ local function stopTeleport()
                 -- Финальная телепортация на точную позицию
                 root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
                 TeleportConfig.OriginalPosition = nil
+                
+                -- Отключаем NoClip после возврата
+                if isNoClipping then
+                    stopNoClip()
+                    print("NoClip отключен после возврата")
+                end
                 
                 -- Отключаем цикл возврата
                 if returnLoop then
@@ -1762,9 +1774,37 @@ returnToStartBtn.MouseButton1Click:Connect(function()
         return
     end
     
+    -- Останавливаем телепортацию к игроку если она активна
+    if isTeleporting then
+        print("Останавливаем телепортацию к игроку перед возвратом")
+        isTeleporting = false
+        
+        -- Отключаем все соединения телепортации
+        for _, connection in ipairs(teleportConnections) do
+            if connection then
+                if typeof(connection) == "RBXScriptConnection" then
+                    pcall(function() connection:Disconnect() end)
+                end
+            end
+        end
+        teleportConnections = {}
+        
+        -- Удаляем BodyVelocity от телепортации
+        local bv = root:FindFirstChild("BodyVelocity")
+        if bv then
+            bv:Destroy()
+        end
+    end
+    
     -- Быстрый возврат на исходную позицию с двухэтапным движением
     print("Начинаем возврат на исходную позицию...")
     returnToStartBtn.Text = "Возвращаемся..."
+    
+    -- Включаем NoClip для возврата
+    if not isNoClipping then
+        startNoClip()
+        print("NoClip включен для возврата на исходную позицию")
+    end
     
     -- Создаем двухэтапное движение к исходной позиции
     local returnStartTime = tick()
@@ -1814,6 +1854,12 @@ returnToStartBtn.MouseButton1Click:Connect(function()
             -- Финальная телепортация на точную позицию
             root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
             TeleportConfig.OriginalPosition = nil
+            
+            -- Отключаем NoClip после возврата
+            if isNoClipping then
+                stopNoClip()
+                print("NoClip отключен после возврата")
+            end
             
             -- Отключаем цикл возврата
             if returnLoop then
