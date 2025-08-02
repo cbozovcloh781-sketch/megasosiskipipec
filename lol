@@ -363,213 +363,7 @@ local function stopSpeedHack()
     speedHackConnections = {}
 end
 
--- Новая система телепортации к игрокам
-local function createPlayerSelectionWindow()
-    print("=== СОЗДАНИЕ ОКНА ВЫБОРА ИГРОКА ===")
-    
-    -- Закрываем предыдущее окно если оно открыто
-    if playerSelectionWindow then
-        playerSelectionWindow:Destroy()
-        playerSelectionWindow = nil
-    end
-    
-    -- Создаем новое окно
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "PlayerSelectionScreenGui"
-    screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-    
-    playerSelectionWindow = Instance.new("Frame", screenGui)
-    playerSelectionWindow.Name = "PlayerSelectionWindow"
-    playerSelectionWindow.Size = UDim2.new(0, 350, 0, 500)
-    playerSelectionWindow.Position = UDim2.new(0.5, -175, 0.5, -250)
-    playerSelectionWindow.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-    playerSelectionWindow.BorderSizePixel = 2
-    playerSelectionWindow.BorderColor3 = Color3.fromRGB(100, 100, 120)
-    playerSelectionWindow.ZIndex = 1000
-    Instance.new("UICorner", playerSelectionWindow).CornerRadius = UDim.new(0, 8)
-    
-    print("Окно создано: " .. tostring(playerSelectionWindow))
-    print("Позиция окна: " .. tostring(playerSelectionWindow.Position))
-    print("Размер окна: " .. tostring(playerSelectionWindow.Size))
-    
-    -- Заголовок окна
-    local titleBar = Instance.new("Frame", playerSelectionWindow)
-    titleBar.Name = "TitleBar"
-    titleBar.Size = UDim2.new(1, 0, 0, 50)
-    titleBar.Position = UDim2.new(0, 0, 0, 0)
-    titleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-    titleBar.BorderSizePixel = 0
-    Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 8, 0, 0)
-    
-    local titleText = Instance.new("TextLabel", titleBar)
-    titleText.Name = "TitleText"
-    titleText.Size = UDim2.new(1, -60, 1, 0)
-    titleText.Position = UDim2.new(0, 20, 0, 0)
-    titleText.BackgroundTransparency = 1
-    titleText.Text = "ВЫБЕРИТЕ ИГРОКА ДЛЯ ТЕЛЕПОРТАЦИИ"
-    titleText.Font = Enum.Font.GothamBold
-    titleText.TextSize = 18
-    titleText.TextColor3 = Color3.new(1, 1, 1)
-    titleText.TextXAlignment = Enum.TextXAlignment.Left
-    
-    -- Кнопка закрытия
-    local closeBtn = Instance.new("TextButton", titleBar)
-    closeBtn.Name = "CloseButton"
-    closeBtn.Size = UDim2.new(0, 30, 0, 30)
-    closeBtn.Position = UDim2.new(1, -40, 0.5, -15)
-    closeBtn.Text = "✕"
-    closeBtn.Font = Enum.Font.GothamBold
-    closeBtn.TextSize = 18
-    closeBtn.TextColor3 = Color3.new(1, 1, 1)
-    closeBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-    closeBtn.AutoButtonColor = false
-    Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
-    
-    closeBtn.MouseButton1Click:Connect(function()
-        playerSelectionWindow:Destroy()
-        playerSelectionWindow = nil
-    end)
-    
-    -- Контейнер для списка игроков
-    local scrollFrame = Instance.new("ScrollingFrame", playerSelectionWindow)
-    scrollFrame.Name = "PlayerList"
-    scrollFrame.Size = UDim2.new(1, -20, 1, -70)
-    scrollFrame.Position = UDim2.new(0, 10, 0, 60)
-    scrollFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-    scrollFrame.BorderSizePixel = 1
-    scrollFrame.BorderColor3 = Color3.fromRGB(80, 80, 100)
-    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-    scrollFrame.ScrollBarThickness = 8
-    scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(150, 150, 170)
-    scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    Instance.new("UICorner", scrollFrame).CornerRadius = UDim.new(0, 6)
-    
-    local listLayout = Instance.new("UIListLayout", scrollFrame)
-    listLayout.Padding = UDim.new(0, 8)
-    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    
-    print("ScrollFrame создан: " .. tostring(scrollFrame))
-    print("Размер ScrollFrame: " .. tostring(scrollFrame.Size))
-    print("Позиция ScrollFrame: " .. tostring(scrollFrame.Position))
-    
-    -- Получаем список всех игроков (включая мертвых для тестирования)
-    local allPlayers = Players:GetPlayers()
-    local alivePlayers = {}
-    
-    print("Всего игроков на сервере: " .. #allPlayers)
-    
-    -- Создаем список всех игроков кроме локального
-    for _, player in ipairs(allPlayers) do
-        if player and player ~= Players.LocalPlayer then
-            table.insert(alivePlayers, player)
-            print("Добавлен игрок: " .. player.Name)
-        end
-    end
-    
-    print("Найдено игроков для отображения: " .. #alivePlayers)
-    
-    -- Обновляем заголовок с количеством игроков
-    titleText.Text = "ВЫБЕРИТЕ ИГРОКА ДЛЯ ТЕЛЕПОРТАЦИИ (" .. #alivePlayers .. " игроков)"
-    
-    if #alivePlayers == 0 then
-        local noPlayersText = Instance.new("TextLabel", scrollFrame)
-        noPlayersText.Size = UDim2.new(1, 0, 0, 50)
-        noPlayersText.Text = "НЕТ ДРУГИХ ИГРОКОВ НА СЕРВЕРЕ"
-        noPlayersText.Font = Enum.Font.GothamBold
-        noPlayersText.TextSize = 16
-        noPlayersText.TextColor3 = Color3.fromRGB(255, 100, 100)
-        noPlayersText.BackgroundTransparency = 1
-        noPlayersText.TextXAlignment = Enum.TextXAlignment.Center
-    else
-        -- Создаем кнопки для каждого игрока
-        for i, player in ipairs(alivePlayers) do
-            print("Создаем кнопку для игрока " .. i .. ": " .. player.Name)
-            
-            local playerButton = Instance.new("TextButton", scrollFrame)
-            playerButton.Size = UDim2.new(1, 0, 0, 50)
-            playerButton.Text = player.Name
-            playerButton.Font = Enum.Font.GothamBold
-            playerButton.TextSize = 20
-            playerButton.TextColor3 = Color3.new(1, 1, 1)
-            playerButton.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-            playerButton.AutoButtonColor = false
-            playerButton.BorderSizePixel = 2
-            playerButton.BorderColor3 = Color3.fromRGB(150, 150, 170)
-            Instance.new("UICorner", playerButton).CornerRadius = UDim.new(0, 8)
-            
-            -- Эффекты при наведении
-            playerButton.MouseEnter:Connect(function()
-                playerButton.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
-                playerButton.BorderColor3 = Color3.fromRGB(200, 200, 220)
-                playerButton.TextColor3 = Color3.new(1, 1, 0) -- Желтый текст при наведении
-            end)
-            
-            playerButton.MouseLeave:Connect(function()
-                playerButton.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-                playerButton.BorderColor3 = Color3.fromRGB(150, 150, 170)
-                playerButton.TextColor3 = Color3.new(1, 1, 1) -- Белый текст
-            end)
-            
-            -- Обработка выбора игрока
-            playerButton.MouseButton1Click:Connect(function()
-                TeleportConfig.TargetPlayer = player
-                TeleportConfig.SelectedPlayerName = player.Name
-                print("Выбран игрок: " .. player.Name)
-                
-                -- Закрываем окно
-                playerSelectionWindow:Destroy()
-                playerSelectionWindow = nil
-                
-                -- Обновляем GUI
-                if guiCallbacks.teleport then
-                    guiCallbacks.teleport.Text = "Выбранный игрок: " .. player.Name
-                end
-            end)
-            
-            print("Кнопка для игрока " .. player.Name .. " создана успешно")
-        end
-        
-        print("Всего создано кнопок: " .. #alivePlayers)
-        
-        -- Добавляем тестовую кнопку для проверки видимости
-        local testButton = Instance.new("TextButton", scrollFrame)
-        testButton.Size = UDim2.new(1, 0, 0, 50)
-        testButton.Text = "ТЕСТОВАЯ КНОПКА - ПРОВЕРКА ВИДИМОСТИ"
-        testButton.Font = Enum.Font.GothamBold
-        testButton.TextSize = 16
-        testButton.TextColor3 = Color3.new(1, 1, 1)
-        testButton.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-        testButton.AutoButtonColor = false
-        testButton.BorderSizePixel = 2
-        testButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
-        Instance.new("UICorner", testButton).CornerRadius = UDim.new(0, 8)
-        
-        testButton.MouseButton1Click:Connect(function()
-            print("Тестовая кнопка нажата - окно работает!")
-        end)
-        
-        print("Тестовая кнопка добавлена")
-    end
-    
-    -- Закрытие по ESC
-    local escConnection
-    escConnection = UserInputService.InputBegan:Connect(function(input, gp)
-        if input.KeyCode == Enum.KeyCode.Escape then
-            playerSelectionWindow:Destroy()
-            playerSelectionWindow = nil
-            if escConnection then
-                escConnection:Disconnect()
-            end
-        end
-    end)
-    
-    print("=== ОКНО ВЫБОРА ИГРОКА СОЗДАНО УСПЕШНО ===")
-    print("Количество игроков в списке: " .. #alivePlayers)
-    print("Размер окна: " .. tostring(playerSelectionWindow.Size))
-    print("Позиция окна: " .. tostring(playerSelectionWindow.Position))
-    print("Размер ScrollFrame: " .. tostring(scrollFrame.Size))
-    print("Позиция ScrollFrame: " .. tostring(scrollFrame.Position))
-end
+-- Новая система телепортации к игрокам (удалена старая функция создания окна)
 
 local function startTeleport()
     if not TeleportConfig.TargetPlayer then 
@@ -601,12 +395,15 @@ local function startTeleport()
     end
     
     if TeleportConfig.UseStealthMode then
-        -- Скрытый режим: полет к игроку
+        -- Скрытый режим: полет к игроку с NoClip
         print("Используется скрытый режим телепортации через полет")
         
-        -- Включаем полет если он не включен
+        -- Включаем полет и NoClip
         if not isFlying then
             startFly()
+        end
+        if not isNoClipping then
+            startNoClip()
         end
         
         -- Создаем соединение для скрытой телепортации через полет
@@ -621,10 +418,14 @@ local function startTeleport()
                 local currentPos = root.Position
                 local distance = (targetPos - currentPos).Magnitude
                 
-                if distance > 5 then -- Если далеко, летим к игроку
+                print("Расстояние до игрока: " .. distance)
+                
+                if distance > 3 then -- Если далеко, летим к игроку
                     -- Вычисляем направление к игроку
                     local direction = (targetPos - currentPos).Unit
-                    local moveSpeed = math.min(distance * 0.1, 30) -- Адаптивная скорость
+                    local moveSpeed = math.min(distance * 0.2, 50) -- Увеличиваем скорость
+                    
+                    print("Летим к игроку со скоростью: " .. moveSpeed)
                     
                     -- Используем BodyVelocity для полета к игроку
                     local bv = root:FindFirstChild("BodyVelocity")
@@ -638,11 +439,12 @@ local function startTeleport()
                     local bv = root:FindFirstChild("BodyVelocity")
                     if bv then
                         -- Плавно следуем за игроком на небольшом расстоянии
-                        local followPos = targetPos + Vector3.new(0, 2, 0) -- Немного выше игрока
+                        local followPos = targetPos + Vector3.new(0, 1, 0) -- Немного выше игрока
                         local followDirection = (followPos - currentPos).Unit
-                        local followSpeed = 5 -- Медленная скорость следования
+                        local followSpeed = 3 -- Медленная скорость следования
                         
                         bv.Velocity = followDirection * followSpeed
+                        print("Следуем за игроком")
                     end
                 end
             end
@@ -703,9 +505,12 @@ local function stopTeleport()
     end
     teleportConnections = {}
     
-    -- Останавливаем полет если он был включен для телепортации
+    -- Останавливаем полет и NoClip если они были включены для телепортации
     if isFlying and TeleportConfig.UseStealthMode then
         stopFly()
+    end
+    if isNoClipping and TeleportConfig.UseStealthMode then
+        stopNoClip()
     end
 end
 
@@ -1605,28 +1410,12 @@ divider5.BorderSizePixel = 0
 -- 🟩 Teleport System Integration
 sectionHeader("🟩 Настройки телепортации")
 
--- Кнопка выбора игрока
-local selectPlayerBtn = Instance.new("TextButton", innerContainer)
-selectPlayerBtn.Size = UDim2.new(1, -10, 0, 28)
-selectPlayerBtn.Text = "Выбрать игрока для телепортации"
-selectPlayerBtn.Font = Enum.Font.Gotham
-selectPlayerBtn.TextSize = 14
-selectPlayerBtn.TextColor3 = Color3.new(1,1,1)
-selectPlayerBtn.BackgroundColor3 = Color3.fromRGB(60,60,80)
-selectPlayerBtn.AutoButtonColor = false
-Instance.new("UICorner", selectPlayerBtn).CornerRadius = UDim.new(0,6)
-
-selectPlayerBtn.MouseButton1Click:Connect(function()
-    print("=== НАЖАТА КНОПКА ВЫБОРА ИГРОКА ===")
-    createPlayerSelectionWindow()
-end)
-
 -- Показываем выбранного игрока
 local selectedPlayerLabel = Instance.new("TextLabel", innerContainer)
 selectedPlayerLabel.Size = UDim2.new(1, -10, 0, 24)
 selectedPlayerLabel.Text = "Выбранный игрок: " .. (TeleportConfig.SelectedPlayerName or "Не выбран")
-selectedPlayerLabel.Font = Enum.Font.Gotham
-selectedPlayerLabel.TextSize = 12
+selectedPlayerLabel.Font = Enum.Font.GothamBold
+selectedPlayerLabel.TextSize = 14
 selectedPlayerLabel.TextColor3 = Color3.new(1,1,1)
 selectedPlayerLabel.BackgroundTransparency = 1
 selectedPlayerLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -1691,6 +1480,70 @@ stopTeleportBtn.MouseButton1Click:Connect(function()
         stopTeleportBtn.Text = "ВЫКЛЮЧИТЬ ТЕЛЕПОРТАЦИЮ"
     end
 end)
+
+-- Создаем список игроков прямо в меню
+local function createPlayerListInMenu()
+    local allPlayers = Players:GetPlayers()
+    local alivePlayers = {}
+    
+    -- Получаем список всех игроков кроме локального
+    for _, player in ipairs(allPlayers) do
+        if player and player ~= Players.LocalPlayer then
+            table.insert(alivePlayers, player)
+        end
+    end
+    
+    print("Создаем список игроков в меню: " .. #alivePlayers .. " игроков")
+    
+    -- Создаем кнопки для каждого игрока
+    for i, player in ipairs(alivePlayers) do
+        local playerBtn = Instance.new("TextButton", innerContainer)
+        playerBtn.Size = UDim2.new(1, -10, 0, 30)
+        playerBtn.Text = player.Name
+        playerBtn.Font = Enum.Font.Gotham
+        playerBtn.TextSize = 12
+        playerBtn.TextColor3 = Color3.new(1,1,1)
+        playerBtn.BackgroundColor3 = Color3.fromRGB(50,50,60)
+        playerBtn.AutoButtonColor = false
+        playerBtn.BorderSizePixel = 1
+        playerBtn.BorderColor3 = Color3.fromRGB(100,100,120)
+        Instance.new("UICorner", playerBtn).CornerRadius = UDim.new(0,4)
+        
+        -- Эффекты при наведении
+        playerBtn.MouseEnter:Connect(function()
+            playerBtn.BackgroundColor3 = Color3.fromRGB(70,70,80)
+            playerBtn.BorderColor3 = Color3.fromRGB(150,150,170)
+        end)
+        
+        playerBtn.MouseLeave:Connect(function()
+            playerBtn.BackgroundColor3 = Color3.fromRGB(50,50,60)
+            playerBtn.BorderColor3 = Color3.fromRGB(100,100,120)
+        end)
+        
+        -- Обработка выбора игрока
+        playerBtn.MouseButton1Click:Connect(function()
+            -- Сбрасываем цвет всех кнопок
+            for _, btn in ipairs(innerContainer:GetChildren()) do
+                if btn:IsA("TextButton") and btn ~= stealthToggleBtn and btn ~= startTeleportBtn and btn ~= stopTeleportBtn then
+                    btn.BackgroundColor3 = Color3.fromRGB(50,50,60)
+                    btn.BorderColor3 = Color3.fromRGB(100,100,120)
+                end
+            end
+            
+            -- Выделяем выбранную кнопку
+            playerBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
+            playerBtn.BorderColor3 = Color3.fromRGB(0,200,0)
+            
+            TeleportConfig.TargetPlayer = player
+            TeleportConfig.SelectedPlayerName = player.Name
+            selectedPlayerLabel.Text = "Выбранный игрок: " .. player.Name
+            print("Выбран игрок: " .. player.Name)
+        end)
+    end
+end
+
+-- Создаем список игроков
+createPlayerListInMenu()
 
 -- Переключатель режима телепортации
 local stealthToggleBtn = Instance.new("TextButton", innerContainer)
