@@ -435,13 +435,17 @@ local function createPlayerSelectionWindow()
     scrollFrame.Name = "PlayerList"
     scrollFrame.Size = UDim2.new(1, -20, 1, -70)
     scrollFrame.Position = UDim2.new(0, 10, 0, 60)
-    scrollFrame.BackgroundTransparency = 1
+    scrollFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    scrollFrame.BorderSizePixel = 1
+    scrollFrame.BorderColor3 = Color3.fromRGB(80, 80, 100)
     scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-    scrollFrame.ScrollBarThickness = 6
+    scrollFrame.ScrollBarThickness = 8
+    scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(150, 150, 170)
     scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    Instance.new("UICorner", scrollFrame).CornerRadius = UDim.new(0, 6)
     
     local listLayout = Instance.new("UIListLayout", scrollFrame)
-    listLayout.Padding = UDim.new(0, 5)
+    listLayout.Padding = UDim.new(0, 8)
     listLayout.SortOrder = Enum.SortOrder.LayoutOrder
     
     print("ScrollFrame создан: " .. tostring(scrollFrame))
@@ -526,6 +530,25 @@ local function createPlayerSelectionWindow()
         end
         
         print("Всего создано кнопок: " .. #alivePlayers)
+        
+        -- Добавляем тестовую кнопку для проверки видимости
+        local testButton = Instance.new("TextButton", scrollFrame)
+        testButton.Size = UDim2.new(1, 0, 0, 50)
+        testButton.Text = "ТЕСТОВАЯ КНОПКА - ПРОВЕРКА ВИДИМОСТИ"
+        testButton.Font = Enum.Font.GothamBold
+        testButton.TextSize = 16
+        testButton.TextColor3 = Color3.new(1, 1, 1)
+        testButton.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+        testButton.AutoButtonColor = false
+        testButton.BorderSizePixel = 2
+        testButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
+        Instance.new("UICorner", testButton).CornerRadius = UDim.new(0, 8)
+        
+        testButton.MouseButton1Click:Connect(function()
+            print("Тестовая кнопка нажата - окно работает!")
+        end)
+        
+        print("Тестовая кнопка добавлена")
     end
     
     -- Закрытие по ESC
@@ -542,6 +565,10 @@ local function createPlayerSelectionWindow()
     
     print("=== ОКНО ВЫБОРА ИГРОКА СОЗДАНО УСПЕШНО ===")
     print("Количество игроков в списке: " .. #alivePlayers)
+    print("Размер окна: " .. tostring(playerSelectionWindow.Size))
+    print("Позиция окна: " .. tostring(playerSelectionWindow.Position))
+    print("Размер ScrollFrame: " .. tostring(scrollFrame.Size))
+    print("Позиция ScrollFrame: " .. tostring(scrollFrame.Position))
 end
 
 local function startTeleport()
@@ -574,10 +601,15 @@ local function startTeleport()
     end
     
     if TeleportConfig.UseStealthMode then
-        -- Скрытый режим: незаметная телепортация через Humanoid
-        print("Используется скрытый режим телепортации")
+        -- Скрытый режим: полет к игроку
+        print("Используется скрытый режим телепортации через полет")
         
-        -- Создаем соединение для скрытой телепортации
+        -- Включаем полет если он не включен
+        if not isFlying then
+            startFly()
+        end
+        
+        -- Создаем соединение для скрытой телепортации через полет
         local stealthTeleportLoop = RunService.Heartbeat:Connect(function()
             if not isTeleporting or not targetChar or not targetChar.Parent then
                 return
@@ -589,25 +621,28 @@ local function startTeleport()
                 local currentPos = root.Position
                 local distance = (targetPos - currentPos).Magnitude
                 
-                if distance > 3 then -- Если далеко, приближаемся
-                    -- Используем Humanoid для незаметного движения
-                    local humanoid = char:FindFirstChild("Humanoid")
-                    if humanoid then
-                        -- Плавно двигаемся к цели
-                        local direction = (targetPos - currentPos).Unit
-                        local moveSpeed = math.min(distance * 0.05, 20) -- Медленная скорость
-                        
-                        -- Устанавливаем скорость движения
-                        humanoid.WalkSpeed = moveSpeed
-                        
-                        -- Двигаемся в направлении цели
-                        humanoid:Move(direction)
+                if distance > 5 then -- Если далеко, летим к игроку
+                    -- Вычисляем направление к игроку
+                    local direction = (targetPos - currentPos).Unit
+                    local moveSpeed = math.min(distance * 0.1, 30) -- Адаптивная скорость
+                    
+                    -- Используем BodyVelocity для полета к игроку
+                    local bv = root:FindFirstChild("BodyVelocity")
+                    if not bv then
+                        bv = Instance.new("BodyVelocity", root)
+                        bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
                     end
+                    bv.Velocity = direction * moveSpeed
                 else
-                    -- Если близко, останавливаемся
-                    local humanoid = char:FindFirstChild("Humanoid")
-                    if humanoid then
-                        humanoid.WalkSpeed = 16 -- Возвращаем нормальную скорость
+                    -- Если близко, останавливаемся и следуем за игроком
+                    local bv = root:FindFirstChild("BodyVelocity")
+                    if bv then
+                        -- Плавно следуем за игроком на небольшом расстоянии
+                        local followPos = targetPos + Vector3.new(0, 2, 0) -- Немного выше игрока
+                        local followDirection = (followPos - currentPos).Unit
+                        local followSpeed = 5 -- Медленная скорость следования
+                        
+                        bv.Velocity = followDirection * followSpeed
                     end
                 end
             end
@@ -645,12 +680,6 @@ local function stopTeleport()
     
     local root = char:FindFirstChild("HumanoidRootPart")
     
-    -- Восстанавливаем нормальную скорость движения
-    local humanoid = char and char:FindFirstChild("Humanoid")
-    if humanoid then
-        humanoid.WalkSpeed = 16
-    end
-    
     -- Удаляем BodyVelocity если он есть
     local bv = root and root:FindFirstChild("BodyVelocity")
     if bv then
@@ -673,6 +702,11 @@ local function stopTeleport()
         end
     end
     teleportConnections = {}
+    
+    -- Останавливаем полет если он был включен для телепортации
+    if isFlying and TeleportConfig.UseStealthMode then
+        stopFly()
+    end
 end
 
 local function getAlivePlayers()
