@@ -413,32 +413,18 @@ local function createStealthTeleport()
             
             print("Расстояние до игрока: " .. distance .. " | Позиция игрока: " .. tostring(targetPos) .. " | Моя позиция: " .. tostring(currentPos))
             
-            if distance > 5 then -- Если далеко, используем BodyVelocity для быстрого движения
-                -- Используем BodyVelocity для быстрого движения
-                local bv = root:FindFirstChild("BodyVelocity")
-                if not bv then
-                    bv = Instance.new("BodyVelocity", root)
-                    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                end
-                
-                local direction = (targetPos - currentPos).Unit
-                local moveSpeed = math.min(distance * 0.5, 80) -- Увеличиваем скорость
-                bv.Velocity = direction * moveSpeed
-                
-                print("Быстро двигаемся к игроку со скоростью: " .. moveSpeed)
-            else
-                -- Если близко, останавливаемся и следуем за игроком
-                local bv = root:FindFirstChild("BodyVelocity")
-                if bv then
-                    -- Плавно следуем за игроком на небольшом расстоянии
-                    local followPos = targetPos + Vector3.new(0, 1, 0)
-                    local followDirection = (followPos - currentPos).Unit
-                    local followSpeed = 5
-                    
-                    bv.Velocity = followDirection * followSpeed
-                    print("Следуем за игроком")
-                end
+            -- Постоянная принудительная телепортация с постоянной скоростью
+            local bv = root:FindFirstChild("BodyVelocity")
+            if not bv then
+                bv = Instance.new("BodyVelocity", root)
+                bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
             end
+            
+            local direction = (targetPos - currentPos).Unit
+            local moveSpeed = 100 -- Постоянная высокая скорость
+            bv.Velocity = direction * moveSpeed
+            
+            print("Принудительная телепортация к игроку со скоростью: " .. moveSpeed)
         end
     end)
     
@@ -497,27 +483,17 @@ local function startTeleport()
                 local currentPos = root.Position
                 local distance = (targetPos - currentPos).Magnitude
                 
-                if distance > 2 then
-                    -- Быстро приближаемся к игроку
-                    local direction = (targetPos - currentPos).Unit
-                    local moveSpeed = math.min(distance * 0.4, 60)
-                    
-                    -- Используем BodyVelocity для быстрого движения
-                    local bv = root:FindFirstChild("BodyVelocity")
-                    if not bv then
-                        bv = Instance.new("BodyVelocity", root)
-                        bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                    end
-                    bv.Velocity = direction * moveSpeed
-                else
-                    -- Если очень близко, следуем за игроком
-                    local bv = root:FindFirstChild("BodyVelocity")
-                    if bv then
-                        local followPos = targetPos + Vector3.new(0, 0, 1)
-                        local followDirection = (followPos - currentPos).Unit
-                        bv.Velocity = followDirection * 3
-                    end
+                -- Постоянная принудительная телепортация с постоянной скоростью
+                local direction = (targetPos - currentPos).Unit
+                local moveSpeed = 100 -- Постоянная высокая скорость
+                
+                -- Используем BodyVelocity для быстрого движения
+                local bv = root:FindFirstChild("BodyVelocity")
+                if not bv then
+                    bv = Instance.new("BodyVelocity", root)
+                    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
                 end
+                bv.Velocity = direction * moveSpeed
             end
         end)
         
@@ -544,28 +520,28 @@ local function stopTeleport()
     end
     
     if root and TeleportConfig.OriginalPosition then
-        -- Возвращаемся на оригинальную позицию
-        print("Возвращаемся на исходную позицию: " .. tostring(TeleportConfig.OriginalPosition))
+        -- Быстрый возврат на исходную позицию
+        print("Быстрый возврат на исходную позицию: " .. tostring(TeleportConfig.OriginalPosition))
         
-        -- Используем BodyVelocity для плавного возврата
+        -- Используем BodyVelocity для быстрого возврата
         local returnBv = Instance.new("BodyVelocity", root)
         returnBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
         
         local currentPos = root.Position
         local returnPos = TeleportConfig.OriginalPosition
         local returnDirection = (returnPos - currentPos).Unit
-        local returnSpeed = 50
+        local returnSpeed = 100 -- Такая же скорость как при телепортации
         
         returnBv.Velocity = returnDirection * returnSpeed
         
         -- Ждем немного и затем удаляем BodyVelocity
-        task.wait(1)
+        task.wait(0.5)
         returnBv:Destroy()
         
         -- Финальная телепортация на точную позицию
         root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
         TeleportConfig.OriginalPosition = nil
-        print("Возврат на исходную позицию завершен")
+        print("Быстрый возврат на исходную позицию завершен")
     end
     
     -- Отключаем все соединения
@@ -1719,7 +1695,22 @@ returnToStartBtn.MouseButton1Click:Connect(function()
         return
     end
     
-    -- Быстрый возврат на исходную позицию
+    -- Быстрый возврат на исходную позицию с BodyVelocity
+    local returnBv = Instance.new("BodyVelocity", root)
+    returnBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    
+    local currentPos = root.Position
+    local returnPos = TeleportConfig.OriginalPosition
+    local returnDirection = (returnPos - currentPos).Unit
+    local returnSpeed = 100
+    
+    returnBv.Velocity = returnDirection * returnSpeed
+    
+    -- Ждем немного и затем удаляем BodyVelocity
+    task.wait(0.5)
+    returnBv:Destroy()
+    
+    -- Финальная телепортация на точную позицию
     root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
     TeleportConfig.OriginalPosition = nil
     print("Быстрый возврат на исходную позицию выполнен!")
