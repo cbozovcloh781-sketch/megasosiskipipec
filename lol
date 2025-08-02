@@ -523,7 +523,10 @@ local function stopTeleport()
         -- Быстрый возврат на исходную позицию с постоянным движением
         print("Быстрый возврат на исходную позицию: " .. tostring(TeleportConfig.OriginalPosition))
         
-        -- Создаем постоянное движение к исходной позиции
+        -- Создаем двухэтапное движение к исходной позиции
+        local returnStartTime = tick()
+        local fastPhaseComplete = false
+        
         local returnLoop = RunService.Heartbeat:Connect(function()
             if not root or not root.Parent then
                 return
@@ -532,8 +535,9 @@ local function stopTeleport()
             local currentPos = root.Position
             local returnPos = TeleportConfig.OriginalPosition
             local distance = (returnPos - currentPos).Magnitude
+            local elapsedTime = tick() - returnStartTime
             
-            print("Расстояние до исходной позиции: " .. distance)
+            print("Расстояние до исходной позиции: " .. distance .. " | Время: " .. elapsedTime)
             
             if distance > 10 then
                 -- Продолжаем движение к исходной позиции
@@ -544,10 +548,20 @@ local function stopTeleport()
                 end
                 
                 local returnDirection = (returnPos - currentPos).Unit
-                local returnSpeed = 500 -- Сверхвысокая скорость для быстрого возврата
-                returnBv.Velocity = returnDirection * returnSpeed
+                local returnSpeed
                 
-                print("Сверхбыстрое движение к исходной позиции со скоростью: " .. returnSpeed)
+                -- Первая фаза: быстрый полет (1 секунда)
+                if elapsedTime < 1 and not fastPhaseComplete then
+                    returnSpeed = 800 -- Очень высокая скорость для быстрого приближения
+                    print("Быстрая фаза: движение к исходной позиции со скоростью: " .. returnSpeed)
+                else
+                    -- Вторая фаза: плавное приближение к точной позиции
+                    fastPhaseComplete = true
+                    returnSpeed = math.min(distance * 2, 50) -- Адаптивная скорость для точного позиционирования
+                    print("Точная фаза: плавное движение к исходной позиции со скоростью: " .. returnSpeed)
+                end
+                
+                returnBv.Velocity = returnDirection * returnSpeed
             else
                 -- Достигли исходной позиции (в пределах 10 единиц)
                 local returnBv = root:FindFirstChild("BodyVelocity")
@@ -1748,11 +1762,14 @@ returnToStartBtn.MouseButton1Click:Connect(function()
         return
     end
     
-    -- Быстрый возврат на исходную позицию с постоянным движением
+    -- Быстрый возврат на исходную позицию с двухэтапным движением
     print("Начинаем возврат на исходную позицию...")
     returnToStartBtn.Text = "Возвращаемся..."
     
-    -- Создаем постоянное движение к исходной позиции
+    -- Создаем двухэтапное движение к исходной позиции
+    local returnStartTime = tick()
+    local fastPhaseComplete = false
+    
     local returnLoop = RunService.Heartbeat:Connect(function()
         if not root or not root.Parent then
             return
@@ -1761,6 +1778,7 @@ returnToStartBtn.MouseButton1Click:Connect(function()
         local currentPos = root.Position
         local returnPos = TeleportConfig.OriginalPosition
         local distance = (returnPos - currentPos).Magnitude
+        local elapsedTime = tick() - returnStartTime
         
         if distance > 10 then
             -- Продолжаем движение к исходной позиции
@@ -1771,10 +1789,21 @@ returnToStartBtn.MouseButton1Click:Connect(function()
             end
             
             local returnDirection = (returnPos - currentPos).Unit
-            local returnSpeed = 500 -- Сверхвысокая скорость для быстрого возврата
-            returnBv.Velocity = returnDirection * returnSpeed
+            local returnSpeed
             
-            print("Сверхбыстрое движение к исходной позиции: " .. distance .. " единиц осталось")
+            -- Первая фаза: быстрый полет (1 секунда)
+            if elapsedTime < 1 and not fastPhaseComplete then
+                returnSpeed = 800 -- Очень высокая скорость для быстрого приближения
+                print("Быстрая фаза: движение к исходной позиции со скоростью: " .. returnSpeed)
+            else
+                -- Вторая фаза: плавное приближение к точной позиции
+                fastPhaseComplete = true
+                returnSpeed = math.min(distance * 2, 50) -- Адаптивная скорость для точного позиционирования
+                print("Точная фаза: плавное движение к исходной позиции со скоростью: " .. returnSpeed)
+            end
+            
+            returnBv.Velocity = returnDirection * returnSpeed
+            print("Движение к исходной позиции: " .. distance .. " единиц осталось")
         else
             -- Достигли исходной позиции (в пределах 10 единиц)
             local returnBv = root:FindFirstChild("BodyVelocity")
