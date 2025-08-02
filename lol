@@ -360,34 +360,169 @@ local function stopSpeedHack()
     speedHackConnections = {}
 end
 
--- Функции телепортации к игрокам
+-- Новая система телепортации к игрокам
+local function createPlayerSelectionWindow()
+    -- Закрываем предыдущее окно если оно открыто
+    if playerSelectionWindow then
+        playerSelectionWindow:Destroy()
+        playerSelectionWindow = nil
+    end
+    
+    -- Создаем новое окно
+    playerSelectionWindow = Instance.new("Frame", CoreGui)
+    playerSelectionWindow.Name = "PlayerSelectionWindow"
+    playerSelectionWindow.Size = UDim2.new(0, 350, 0, 500)
+    playerSelectionWindow.Position = UDim2.new(0.5, -175, 0.5, -250)
+    playerSelectionWindow.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    playerSelectionWindow.BorderSizePixel = 0
+    playerSelectionWindow.ZIndex = 1000
+    Instance.new("UICorner", playerSelectionWindow).CornerRadius = UDim.new(0, 8)
+    
+    -- Заголовок окна
+    local titleBar = Instance.new("Frame", playerSelectionWindow)
+    titleBar.Name = "TitleBar"
+    titleBar.Size = UDim2.new(1, 0, 0, 50)
+    titleBar.Position = UDim2.new(0, 0, 0, 0)
+    titleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    titleBar.BorderSizePixel = 0
+    Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 8, 0, 0)
+    
+    local titleText = Instance.new("TextLabel", titleBar)
+    titleText.Name = "TitleText"
+    titleText.Size = UDim2.new(1, -60, 1, 0)
+    titleText.Position = UDim2.new(0, 20, 0, 0)
+    titleText.BackgroundTransparency = 1
+    titleText.Text = "Выберите игрока для телепортации"
+    titleText.Font = Enum.Font.GothamBold
+    titleText.TextSize = 16
+    titleText.TextColor3 = Color3.new(1, 1, 1)
+    titleText.TextXAlignment = Enum.TextXAlignment.Left
+    
+    -- Кнопка закрытия
+    local closeBtn = Instance.new("TextButton", titleBar)
+    closeBtn.Name = "CloseButton"
+    closeBtn.Size = UDim2.new(0, 30, 0, 30)
+    closeBtn.Position = UDim2.new(1, -40, 0.5, -15)
+    closeBtn.Text = "✕"
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.TextSize = 18
+    closeBtn.TextColor3 = Color3.new(1, 1, 1)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+    closeBtn.AutoButtonColor = false
+    Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
+    
+    closeBtn.MouseButton1Click:Connect(function()
+        playerSelectionWindow:Destroy()
+        playerSelectionWindow = nil
+    end)
+    
+    -- Контейнер для списка игроков
+    local scrollFrame = Instance.new("ScrollingFrame", playerSelectionWindow)
+    scrollFrame.Name = "PlayerList"
+    scrollFrame.Size = UDim2.new(1, -20, 1, -70)
+    scrollFrame.Position = UDim2.new(0, 10, 0, 60)
+    scrollFrame.BackgroundTransparency = 1
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scrollFrame.ScrollBarThickness = 6
+    scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    
+    local listLayout = Instance.new("UIListLayout", scrollFrame)
+    listLayout.Padding = UDim.new(0, 5)
+    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    
+    -- Получаем список живых игроков
+    local alivePlayers = getAlivePlayers()
+    
+    if #alivePlayers == 0 then
+        local noPlayersText = Instance.new("TextLabel", scrollFrame)
+        noPlayersText.Size = UDim2.new(1, 0, 0, 40)
+        noPlayersText.Text = "Нет доступных игроков"
+        noPlayersText.Font = Enum.Font.Gotham
+        noPlayersText.TextSize = 14
+        noPlayersText.TextColor3 = Color3.fromRGB(150, 150, 150)
+        noPlayersText.BackgroundTransparency = 1
+        noPlayersText.TextXAlignment = Enum.TextXAlignment.Center
+    else
+        -- Создаем кнопки для каждого игрока
+        for _, player in ipairs(alivePlayers) do
+            local playerButton = Instance.new("TextButton", scrollFrame)
+            playerButton.Size = UDim2.new(1, 0, 0, 40)
+            playerButton.Text = player.Name
+            playerButton.Font = Enum.Font.Gotham
+            playerButton.TextSize = 14
+            playerButton.TextColor3 = Color3.new(1, 1, 1)
+            playerButton.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+            playerButton.AutoButtonColor = false
+            playerButton.BorderSizePixel = 0
+            Instance.new("UICorner", playerButton).CornerRadius = UDim.new(0, 6)
+            
+            -- Эффекты при наведении
+            playerButton.MouseEnter:Connect(function()
+                playerButton.BackgroundColor3 = Color3.fromRGB(70, 70, 75)
+            end)
+            
+            playerButton.MouseLeave:Connect(function()
+                playerButton.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+            end)
+            
+            -- Обработка выбора игрока
+            playerButton.MouseButton1Click:Connect(function()
+                TeleportConfig.TargetPlayer = player
+                TeleportConfig.SelectedPlayerName = player.Name
+                print("Выбран игрок: " .. player.Name)
+                
+                -- Закрываем окно
+                playerSelectionWindow:Destroy()
+                playerSelectionWindow = nil
+                
+                -- Обновляем GUI
+                if guiCallbacks.teleport then
+                    guiCallbacks.teleport.Text = "Выбранный игрок: " .. player.Name
+                end
+            end)
+        end
+    end
+    
+    -- Закрытие по ESC
+    local escConnection
+    escConnection = UserInputService.InputBegan:Connect(function(input, gp)
+        if input.KeyCode == Enum.KeyCode.Escape then
+            playerSelectionWindow:Destroy()
+            playerSelectionWindow = nil
+            if escConnection then
+                escConnection:Disconnect()
+            end
+        end
+    end)
+end
+
 local function startTeleport()
-    print("Starting teleport to: " .. (TeleportConfig.TargetPlayer and TeleportConfig.TargetPlayer.Name or "None"))
     if not TeleportConfig.TargetPlayer then 
-        print("No target player selected")
+        print("Не выбран игрок для телепортации")
         return 
     end
     
     local char = Players.LocalPlayer.Character
     local targetChar = TeleportConfig.TargetPlayer.Character
     if not char or not targetChar then 
-        print("Character not found")
+        print("Персонаж не найден")
         return 
     end
     
     local root = char:FindFirstChild("HumanoidRootPart")
     local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
     if not root or not targetRoot then 
-        print("HumanoidRootPart not found")
+        print("HumanoidRootPart не найден")
         return 
     end
     
     isTeleporting = true
-    print("Teleport started successfully")
+    print("Телепортация к " .. TeleportConfig.TargetPlayer.Name .. " начата")
     
-    -- Сохраняем оригинальную позицию если еще не сохранена
+    -- Сохраняем оригинальную позицию
     if not TeleportConfig.OriginalPosition then
         TeleportConfig.OriginalPosition = root.Position
+        print("Сохранена позиция: " .. tostring(TeleportConfig.OriginalPosition))
     end
     
     -- Создаем соединение для постоянной телепортации
@@ -406,12 +541,12 @@ local function startTeleport()
 end
 
 local function stopTeleport()
-    print("Stopping teleport")
+    print("Остановка телепортации")
     isTeleporting = false
     
     local char = Players.LocalPlayer.Character
     if not char then 
-        print("Character not found when stopping")
+        print("Персонаж не найден при остановке")
         return 
     end
     
@@ -420,7 +555,7 @@ local function stopTeleport()
         -- Возвращаемся на оригинальную позицию
         root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
         TeleportConfig.OriginalPosition = nil
-        print("Returned to original position")
+        print("Возврат на исходную позицию")
     end
     
     -- Отключаем все соединения
@@ -544,11 +679,13 @@ UserInputService.InputBegan:Connect(function(input, gp)
                 if TeleportConfig.TargetPlayer then
                     startTeleport()
                     TeleportConfig.Enabled = true
+                else
+                    print("Сначала выберите игрока для телепортации")
                 end
             end
             -- Обновляем GUI
             if guiCallbacks.teleport then
-                guiCallbacks.teleport.Text = "Teleport: " .. (TeleportConfig.Enabled and "ON" or "OFF")
+                guiCallbacks.teleport.Text = "Выбранный игрок: " .. (TeleportConfig.SelectedPlayerName or "Не выбран")
             end
         end
     end
@@ -1088,7 +1225,7 @@ local function playerSelector(label, currentPlayer, callback)
     local selectBtn = Instance.new("TextButton", container)
     selectBtn.Position = UDim2.new(0.7, 5, 0.25, 0)
     selectBtn.Size = UDim2.new(0.3, -5, 0.5, 0)
-    selectBtn.Text = "Select Player"
+    selectBtn.Text = "Выбрать игрока"
     selectBtn.Font = Enum.Font.Gotham
     selectBtn.TextSize = 12
     selectBtn.TextColor3 = Color3.new(1,1,1)
@@ -1096,116 +1233,16 @@ local function playerSelector(label, currentPlayer, callback)
     Instance.new("UICorner", selectBtn).CornerRadius = UDim.new(0,4)
 
     selectBtn.MouseButton1Click:Connect(function()
-        print("=== SELECT PLAYER BUTTON CLICKED ===")
+        print("=== КНОПКА ВЫБОРА ИГРОКА НАЖАТА ===")
         
-        -- Проверяем, что Players сервис доступен
-        if not Players then
-            print("Players service is nil!")
-            return
+        -- Используем новую функцию создания окна выбора игрока
+        createPlayerSelectionWindow()
+        
+        -- Обновляем текст после выбора игрока
+        if TeleportConfig.TargetPlayer then
+            lbl.Text = label .. ": " .. TeleportConfig.TargetPlayer.Name
+            callback(TeleportConfig.TargetPlayer)
         end
-        
-        local alivePlayers = getAlivePlayers()
-        print("Alive players count: " .. #alivePlayers)
-        
-        -- Выводим имена всех игроков для отладки
-        for i, player in ipairs(alivePlayers) do
-            if player and player.Name then
-                print("Player " .. i .. ": " .. player.Name)
-            else
-                print("Player " .. i .. ": nil or no name")
-            end
-        end
-        
-        if #alivePlayers == 0 then
-            lbl.Text = label .. ": No players available"
-            print("No players available")
-            return
-        end
-        
-        print("Creating player window...")
-
-        -- Создаем простое окно со списком игроков
-        local playerWindow = Instance.new("Frame", CoreGui)
-        playerWindow.Size = UDim2.new(0, 300, 0, 400)
-        playerWindow.Position = UDim2.new(0.5, -150, 0.5, -200)
-        playerWindow.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-        playerWindow.BorderSizePixel = 0
-        playerWindow.ZIndex = 1000
-        print("Player window created at position: " .. tostring(playerWindow.Position))
-        print("Player window size: " .. tostring(playerWindow.Size))
-
-        -- Простой заголовок
-        local titleText = Instance.new("TextLabel", playerWindow)
-        titleText.Size = UDim2.new(1, -20, 0, 40)
-        titleText.Position = UDim2.new(0, 10, 0, 10)
-        titleText.BackgroundTransparency = 1
-        titleText.Text = "Select Player to Teleport"
-        titleText.Font = Enum.Font.GothamBold
-        titleText.TextSize = 16
-        titleText.TextColor3 = Color3.new(1, 1, 1)
-        titleText.TextXAlignment = Enum.TextXAlignment.Left
-
-        -- Кнопка закрытия
-        local closeBtn = Instance.new("TextButton", playerWindow)
-        closeBtn.Size = UDim2.new(0, 30, 0, 30)
-        closeBtn.Position = UDim2.new(1, -40, 0, 10)
-        closeBtn.Text = "X"
-        closeBtn.Font = Enum.Font.GothamBold
-        closeBtn.TextSize = 16
-        closeBtn.TextColor3 = Color3.new(1, 1, 1)
-        closeBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-        closeBtn.AutoButtonColor = false
-
-        closeBtn.MouseButton1Click:Connect(function()
-            print("Close button clicked")
-            playerWindow:Destroy()
-        end)
-
-        -- Простой список игроков
-        local yOffset = 60
-        for i, player in ipairs(alivePlayers) do
-            local playerBtn = Instance.new("TextButton", playerWindow)
-            playerBtn.Size = UDim2.new(1, -20, 0, 30)
-            playerBtn.Position = UDim2.new(0, 10, 0, yOffset)
-            playerBtn.Text = player.Name
-            playerBtn.Font = Enum.Font.Gotham
-            playerBtn.TextSize = 14
-            playerBtn.TextColor3 = Color3.new(1,1,1)
-            playerBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
-            playerBtn.AutoButtonColor = false
-
-            playerBtn.MouseButton1Click:Connect(function()
-                print("Selected player: " .. player.Name)
-                callback(player)
-                lbl.Text = label .. ": " .. player.Name
-                playerWindow:Destroy()
-            end)
-
-            playerBtn.MouseEnter:Connect(function()
-                playerBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
-            end)
-
-            playerBtn.MouseLeave:Connect(function()
-                playerBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
-            end)
-            
-            yOffset = yOffset + 35
-        end
-
-        print("Player window setup complete!")
-        print("Window should be visible now")
-        
-        -- Простое закрытие по ESC
-        local closeConnection
-        closeConnection = UserInputService.InputBegan:Connect(function(input, gp)
-            if input.KeyCode == Enum.KeyCode.Escape then
-                print("ESC pressed, closing window")
-                playerWindow:Destroy()
-                if closeConnection then
-                    closeConnection:Disconnect()
-                end
-            end
-        end)
     end)
 
     return lbl, selectBtn
@@ -1313,10 +1350,7 @@ local function updateStatusDisplay()
         guiCallbacks.speedHack.Text = "SpeedHack: " .. (SpeedHackConfig.Enabled and "ON" or "OFF")
     end
     if guiCallbacks.teleport then
-        guiCallbacks.teleport.Text = "Teleport: " .. (TeleportConfig.Enabled and "ON" or "OFF")
-    end
-    if teleportToggleBtn then
-        teleportToggleBtn.Text = "Teleport: " .. (TeleportConfig.Enabled and "ON" or "OFF")
+        guiCallbacks.teleport.Text = "Выбранный игрок: " .. (TeleportConfig.SelectedPlayerName or "Не выбран")
     end
 end
 
@@ -1432,68 +1466,93 @@ divider5.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 divider5.BorderSizePixel = 0
 
 -- 🟩 Teleport System Integration
-sectionHeader("🟩 Teleport Settings")
+sectionHeader("🟩 Настройки телепортации")
 
--- Создаем специальную кнопку для телепортации
-local teleportToggleBtn = Instance.new("TextButton", innerContainer)
-teleportToggleBtn.Size = UDim2.new(1, -10, 0, 28)
-teleportToggleBtn.Text = "Teleport: " .. (TeleportConfig.Enabled and "ON" or "OFF")
-teleportToggleBtn.Font = Enum.Font.Gotham
-teleportToggleBtn.TextSize = 14
-teleportToggleBtn.TextColor3 = Color3.new(1,1,1)
-teleportToggleBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
-teleportToggleBtn.AutoButtonColor = false
-Instance.new("UICorner", teleportToggleBtn).CornerRadius = UDim.new(0,6)
+-- Кнопка выбора игрока
+local selectPlayerBtn = Instance.new("TextButton", innerContainer)
+selectPlayerBtn.Size = UDim2.new(1, -10, 0, 28)
+selectPlayerBtn.Text = "Выбрать игрока для телепортации"
+selectPlayerBtn.Font = Enum.Font.Gotham
+selectPlayerBtn.TextSize = 14
+selectPlayerBtn.TextColor3 = Color3.new(1,1,1)
+selectPlayerBtn.BackgroundColor3 = Color3.fromRGB(60,60,80)
+selectPlayerBtn.AutoButtonColor = false
+Instance.new("UICorner", selectPlayerBtn).CornerRadius = UDim.new(0,6)
 
-teleportToggleBtn.MouseButton1Click:Connect(function()
-    if TeleportConfig.Enabled then
-        -- Выключаем телепортацию
-        stopTeleport()
-        TeleportConfig.Enabled = false
-        teleportToggleBtn.Text = "Teleport: OFF"
-    else
-        -- Включаем телепортацию
-        if TeleportConfig.TargetPlayer then
-            startTeleport()
-            TeleportConfig.Enabled = true
-            teleportToggleBtn.Text = "Teleport: ON"
-        else
-            teleportToggleBtn.Text = "Teleport: Select Player First"
-        end
-    end
-end)
-guiCallbacks.teleport = teleportToggleBtn
-
--- Селектор игрока
-playerSelector("Target Player", TeleportConfig.TargetPlayer, function(player)
-    TeleportConfig.TargetPlayer = player
+selectPlayerBtn.MouseButton1Click:Connect(function()
+    createPlayerSelectionWindow()
 end)
 
--- Кнопка для быстрого старта/стопа телепортации
-local quickTeleportBtn = Instance.new("TextButton", innerContainer)
-quickTeleportBtn.Size = UDim2.new(1, -10, 0, 28)
-quickTeleportBtn.Text = "Start/Stop Teleport"
-quickTeleportBtn.Font = Enum.Font.Gotham
-quickTeleportBtn.TextSize = 14
-quickTeleportBtn.TextColor3 = Color3.new(1,1,1)
-quickTeleportBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
-quickTeleportBtn.AutoButtonColor = false
-Instance.new("UICorner", quickTeleportBtn).CornerRadius = UDim.new(0,6)
+-- Показываем выбранного игрока
+local selectedPlayerLabel = Instance.new("TextLabel", innerContainer)
+selectedPlayerLabel.Size = UDim2.new(1, -10, 0, 24)
+selectedPlayerLabel.Text = "Выбранный игрок: " .. (TeleportConfig.SelectedPlayerName or "Не выбран")
+selectedPlayerLabel.Font = Enum.Font.Gotham
+selectedPlayerLabel.TextSize = 12
+selectedPlayerLabel.TextColor3 = Color3.new(1,1,1)
+selectedPlayerLabel.BackgroundTransparency = 1
+selectedPlayerLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-quickTeleportBtn.MouseButton1Click:Connect(function()
+-- Кнопка старт телепорт
+local startTeleportBtn = Instance.new("TextButton", innerContainer)
+startTeleportBtn.Size = UDim2.new(1, -10, 0, 28)
+startTeleportBtn.Text = "СТАРТ ТЕЛЕПОРТ"
+startTeleportBtn.Font = Enum.Font.GothamBold
+startTeleportBtn.TextSize = 14
+startTeleportBtn.TextColor3 = Color3.new(1,1,1)
+startTeleportBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
+startTeleportBtn.AutoButtonColor = false
+Instance.new("UICorner", startTeleportBtn).CornerRadius = UDim.new(0,6)
+
+startTeleportBtn.MouseButton1Click:Connect(function()
+    if not TeleportConfig.TargetPlayer then
+        startTeleportBtn.Text = "Сначала выберите игрока!"
+        wait(2)
+        startTeleportBtn.Text = "СТАРТ ТЕЛЕПОРТ"
+        return
+    end
+    
+    if TeleportConfig.Enabled then
+        -- Останавливаем телепортацию
+        stopTeleport()
+        TeleportConfig.Enabled = false
+        startTeleportBtn.Text = "СТАРТ ТЕЛЕПОРТ"
+        startTeleportBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
+    else
+        -- Запускаем телепортацию
+        startTeleport()
+        TeleportConfig.Enabled = true
+        startTeleportBtn.Text = "ОСТАНОВИТЬ ТЕЛЕПОРТ"
+        startTeleportBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+    end
+end)
+
+-- Кнопка выключить телепортацию
+local stopTeleportBtn = Instance.new("TextButton", innerContainer)
+stopTeleportBtn.Size = UDim2.new(1, -10, 0, 28)
+stopTeleportBtn.Text = "ВЫКЛЮЧИТЬ ТЕЛЕПОРТАЦИЮ"
+stopTeleportBtn.Font = Enum.Font.GothamBold
+stopTeleportBtn.TextSize = 14
+stopTeleportBtn.TextColor3 = Color3.new(1,1,1)
+stopTeleportBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+stopTeleportBtn.AutoButtonColor = false
+Instance.new("UICorner", stopTeleportBtn).CornerRadius = UDim.new(0,6)
+
+stopTeleportBtn.MouseButton1Click:Connect(function()
     if TeleportConfig.Enabled then
         stopTeleport()
         TeleportConfig.Enabled = false
-        quickTeleportBtn.Text = "Start Teleport"
-        teleportToggleBtn.Text = "Teleport: OFF"
+        startTeleportBtn.Text = "СТАРТ ТЕЛЕПОРТ"
+        startTeleportBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
+        stopTeleportBtn.Text = "Телепортация остановлена"
+        wait(2)
+        stopTeleportBtn.Text = "ВЫКЛЮЧИТЬ ТЕЛЕПОРТАЦИЮ"
     else
-        if TeleportConfig.TargetPlayer then
-            startTeleport()
-            TeleportConfig.Enabled = true
-            quickTeleportBtn.Text = "Stop Teleport"
-            teleportToggleBtn.Text = "Teleport: ON"
-        else
-            quickTeleportBtn.Text = "Select Player First"
-        end
+        stopTeleportBtn.Text = "Телепортация не активна"
+        wait(2)
+        stopTeleportBtn.Text = "ВЫКЛЮЧИТЬ ТЕЛЕПОРТАЦИЮ"
     end
-end) 
+end)
+
+-- Обновляем GUI при выборе игрока
+guiCallbacks.teleport = selectedPlayerLabel 
