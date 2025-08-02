@@ -363,7 +363,110 @@ local function stopSpeedHack()
     speedHackConnections = {}
 end
 
--- Новая система телепортации к игрокам (удалена старая функция создания окна)
+-- Новая система телепортации к игрокам
+local function createStealthTeleport()
+    if not TeleportConfig.TargetPlayer then 
+        print("Не выбран игрок для телепортации")
+        return 
+    end
+    
+    local char = Players.LocalPlayer.Character
+    local targetChar = TeleportConfig.TargetPlayer.Character
+    if not char or not targetChar then 
+        print("Персонаж не найден")
+        return 
+    end
+    
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+    if not root or not targetRoot then 
+        print("HumanoidRootPart не найден")
+        return 
+    end
+    
+    isTeleporting = true
+    print("Скрытая телепортация к " .. TeleportConfig.TargetPlayer.Name .. " начата")
+    
+    -- Сохраняем оригинальную позицию
+    if not TeleportConfig.OriginalPosition then
+        TeleportConfig.OriginalPosition = root.Position
+        print("Сохранена позиция: " .. tostring(TeleportConfig.OriginalPosition))
+    end
+    
+    -- Включаем NoClip для прохождения сквозь препятствия
+    if not isNoClipping then
+        startNoClip()
+    end
+    
+    -- Создаем соединение для скрытой телепортации
+    local stealthTeleportLoop = RunService.Heartbeat:Connect(function()
+        if not isTeleporting or not targetChar or not targetChar.Parent then
+            return
+        end
+        
+        local currentTargetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+        if currentTargetRoot then
+            local targetPos = currentTargetRoot.Position
+            local currentPos = root.Position
+            local distance = (targetPos - currentPos).Magnitude
+            
+            print("Расстояние до игрока: " .. distance)
+            
+            if distance > 8 then -- Если далеко, используем прыжки для приближения
+                local humanoid = char:FindFirstChild("Humanoid")
+                if humanoid then
+                    -- Вычисляем направление к игроку
+                    local direction = (targetPos - currentPos).Unit
+                    
+                    -- Увеличиваем скорость и прыжок для быстрого приближения
+                    humanoid.WalkSpeed = 30
+                    humanoid.JumpPower = 100
+                    
+                    -- Двигаемся в направлении игрока и прыгаем
+                    humanoid:Move(direction)
+                    
+                    -- Периодически прыгаем для ускорения
+                    if tick() % 0.5 < 0.1 then
+                        humanoid.Jump = true
+                    end
+                    
+                    print("Быстро приближаемся к игроку")
+                end
+            elseif distance > 3 then -- Если близко, плавно подходим
+                local humanoid = char:FindFirstChild("Humanoid")
+                if humanoid then
+                    -- Возвращаем нормальные настройки
+                    humanoid.WalkSpeed = 20
+                    humanoid.JumpPower = 50
+                    
+                    local direction = (targetPos - currentPos).Unit
+                    humanoid:Move(direction)
+                    
+                    print("Плавно подходим к игроку")
+                end
+            else
+                -- Если очень близко, следуем за игроком
+                local humanoid = char:FindFirstChild("Humanoid")
+                if humanoid then
+                    humanoid.WalkSpeed = 16
+                    humanoid.JumpPower = 50
+                    
+                    -- Следуем за игроком на небольшом расстоянии
+                    local followPos = targetPos + Vector3.new(0, 0, 2)
+                    local followDirection = (followPos - currentPos).Unit
+                    
+                    if (followPos - currentPos).Magnitude > 1 then
+                        humanoid:Move(followDirection)
+                    end
+                    
+                    print("Следуем за игроком")
+                end
+            end
+        end
+    end)
+    
+    table.insert(teleportConnections, stealthTeleportLoop)
+end
 
 local function startTeleport()
     if not TeleportConfig.TargetPlayer then 
@@ -395,62 +498,8 @@ local function startTeleport()
     end
     
     if TeleportConfig.UseStealthMode then
-        -- Скрытый режим: полет к игроку с NoClip
-        print("Используется скрытый режим телепортации через полет")
-        
-        -- Включаем полет и NoClip
-        if not isFlying then
-            startFly()
-        end
-        if not isNoClipping then
-            startNoClip()
-        end
-        
-        -- Создаем соединение для скрытой телепортации через полет
-        local stealthTeleportLoop = RunService.Heartbeat:Connect(function()
-            if not isTeleporting or not targetChar or not targetChar.Parent then
-                return
-            end
-            
-            local currentTargetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-            if currentTargetRoot then
-                local targetPos = currentTargetRoot.Position
-                local currentPos = root.Position
-                local distance = (targetPos - currentPos).Magnitude
-                
-                print("Расстояние до игрока: " .. distance)
-                
-                if distance > 3 then -- Если далеко, летим к игроку
-                    -- Вычисляем направление к игроку
-                    local direction = (targetPos - currentPos).Unit
-                    local moveSpeed = math.min(distance * 0.2, 50) -- Увеличиваем скорость
-                    
-                    print("Летим к игроку со скоростью: " .. moveSpeed)
-                    
-                    -- Используем BodyVelocity для полета к игроку
-                    local bv = root:FindFirstChild("BodyVelocity")
-                    if not bv then
-                        bv = Instance.new("BodyVelocity", root)
-                        bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                    end
-                    bv.Velocity = direction * moveSpeed
-                else
-                    -- Если близко, останавливаемся и следуем за игроком
-                    local bv = root:FindFirstChild("BodyVelocity")
-                    if bv then
-                        -- Плавно следуем за игроком на небольшом расстоянии
-                        local followPos = targetPos + Vector3.new(0, 1, 0) -- Немного выше игрока
-                        local followDirection = (followPos - currentPos).Unit
-                        local followSpeed = 3 -- Медленная скорость следования
-                        
-                        bv.Velocity = followDirection * followSpeed
-                        print("Следуем за игроком")
-                    end
-                end
-            end
-        end)
-        
-        table.insert(teleportConnections, stealthTeleportLoop)
+        -- Используем новую скрытую функцию телепортации
+        createStealthTeleport()
     else
         -- Обычный режим: прямая телепортация
         print("Используется обычный режим телепортации")
@@ -505,10 +554,14 @@ local function stopTeleport()
     end
     teleportConnections = {}
     
-    -- Останавливаем полет и NoClip если они были включены для телепортации
-    if isFlying and TeleportConfig.UseStealthMode then
-        stopFly()
+    -- Восстанавливаем нормальные настройки движения
+    local humanoid = char and char:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = 16
+        humanoid.JumpPower = 50
     end
+    
+    -- Останавливаем NoClip если он был включен для телепортации
     if isNoClipping and TeleportConfig.UseStealthMode then
         stopNoClip()
     end
