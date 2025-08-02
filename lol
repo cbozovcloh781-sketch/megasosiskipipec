@@ -1574,10 +1574,35 @@ local function createPlayerListInMenu()
         end
     end
     
-    print("Создаем список игроков в меню: " .. #alivePlayers .. " игроков")
+    -- Сортируем игроков по алфавиту (по имени)
+    table.sort(alivePlayers, function(a, b)
+        return a.Name:lower() < b.Name:lower()
+    end)
+    
+    print("Создаем отсортированный список игроков в меню: " .. #alivePlayers .. " игроков")
     
     -- Создаем кнопки для каждого игрока
+    local currentLetter = ""
     for i, player in ipairs(alivePlayers) do
+        local firstLetter = player.Name:sub(1,1):upper()
+        
+        -- Добавляем разделитель для новой буквы
+        if firstLetter ~= currentLetter then
+            currentLetter = firstLetter
+            
+            -- Создаем заголовок для буквы
+            local letterHeader = Instance.new("TextLabel", innerContainer)
+            letterHeader.Size = UDim2.new(1, -10, 0, 20)
+            letterHeader.Text = "--- " .. firstLetter .. " ---"
+            letterHeader.Font = Enum.Font.GothamBold
+            letterHeader.TextSize = 12
+            letterHeader.TextColor3 = Color3.fromRGB(255,255,0)
+            letterHeader.BackgroundColor3 = Color3.fromRGB(30,30,40)
+            letterHeader.BorderSizePixel = 0
+            letterHeader.TextXAlignment = Enum.TextXAlignment.Center
+            Instance.new("UICorner", letterHeader).CornerRadius = UDim.new(0,4)
+        end
+        
         local playerBtn = Instance.new("TextButton", innerContainer)
         playerBtn.Size = UDim2.new(1, -10, 0, 30)
         playerBtn.Text = player.Name
@@ -1603,9 +1628,9 @@ local function createPlayerListInMenu()
         
         -- Обработка выбора игрока
         playerBtn.MouseButton1Click:Connect(function()
-            -- Сбрасываем цвет всех кнопок
+            -- Сбрасываем цвет всех кнопок игроков
             for _, btn in ipairs(innerContainer:GetChildren()) do
-                if btn:IsA("TextButton") and btn ~= stealthToggleBtn and btn ~= startTeleportBtn and btn ~= stopTeleportBtn then
+                if btn:IsA("TextButton") and btn ~= stealthToggleBtn and btn ~= startTeleportBtn and btn ~= stopTeleportBtn and btn ~= forceTeleportBtn and btn ~= returnToStartBtn then
                     btn.BackgroundColor3 = Color3.fromRGB(50,50,60)
                     btn.BorderColor3 = Color3.fromRGB(100,100,120)
                 end
