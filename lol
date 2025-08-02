@@ -1,0 +1,1499 @@
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+
+-- Configuration
+local Config = {
+    ESP = {
+        Enabled     = true,
+        TeamCheck   = false,
+        ShowOutline = true,
+        ShowLines   = false,
+        Rainbow     = false,
+        FillColor   = Color3.fromRGB(255,255,255),
+        OutlineColor= Color3.fromRGB(255,255,255),
+        TextColor   = Color3.fromRGB(255,255,255),
+        LineColor   = Color3.fromRGB(255,255,255),
+        FillTransparency    = 0.5,
+        OutlineTransparency = 0,
+        Font        = Enum.Font.SciFi,
+        TeamColor   = Color3.fromRGB(0,255,0),
+        EnemyColor  = Color3.fromRGB(255,0,0),
+        ToggleKey   = nil,
+    },
+    Aimbot = {
+        Enabled         = false,
+        TeamCheck       = false,
+        VisibilityCheck = true,
+        FOV             = 150,
+        ToggleKey       = nil,
+        FOVColor        = Color3.fromRGB(255,128,128),
+        FOVRainbow      = false,
+    },
+    MenuCollapsed = false,
+}
+
+-- Полностью переписанная система полета для YBA
+local FlyConfig = {
+    Enabled = false,
+    Speed = 1,
+    ToggleKey = nil,
+}
+
+-- Система NoClip
+local NoClipConfig = {
+    Enabled = false,
+    ToggleKey = nil,
+}
+
+-- Система SpeedHack
+local SpeedHackConfig = {
+    Enabled = false,
+    Speed = 1,
+    ToggleKey = nil,
+    UseJumpPower = false, -- Альтернативный метод через JumpPower
+}
+
+-- Система телепортации к игрокам
+local TeleportConfig = {
+    Enabled = false,
+    TargetPlayer = nil,
+    OriginalPosition = nil,
+    ToggleKey = nil,
+}
+
+-- Переменные для полета
+local isFlying = false
+local flyConnections = {}
+local originalGravity = workspace.Gravity
+
+-- Переменные для NoClip
+local isNoClipping = false
+local noClipConnections = {}
+
+-- Переменные для SpeedHack
+local isSpeedHacking = false
+local speedHackConnections = {}
+local originalWalkSpeed = 16
+local originalJumpPower = 50
+
+-- Переменные для телепортации
+local isTeleporting = false
+local teleportConnections = {}
+
+local function startFly()
+    local plr = Players.LocalPlayer
+    local char = plr.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    
+    if not hum or not root then return end
+    
+    isFlying = true
+    
+    -- Сохраняем оригинальные настройки
+    local originalJumpPower = hum.JumpPower
+    local originalJumpHeight = hum.JumpHeight
+    local originalGravity = workspace.Gravity
+    local originalHipHeight = hum.HipHeight
+    
+    -- Настройки для полета в YBA
+    hum.JumpPower = 0
+    hum.JumpHeight = 0
+    workspace.Gravity = 0
+    hum.HipHeight = 0 -- Важно для YBA
+    
+    local ctrl = {f = 0, b = 0, l = 0, r = 0, u = 0, d = 0}
+    
+    local inputDown = UserInputService.InputBegan:Connect(function(input, gp)
+        if gp then return end
+        if input.KeyCode == Enum.KeyCode.W then ctrl.f = 1
+        elseif input.KeyCode == Enum.KeyCode.S then ctrl.b = -1
+        elseif input.KeyCode == Enum.KeyCode.A then ctrl.l = -1
+        elseif input.KeyCode == Enum.KeyCode.D then ctrl.r = 1
+        elseif input.KeyCode == Enum.KeyCode.Space then ctrl.u = 1
+        elseif input.KeyCode == Enum.KeyCode.LeftControl then ctrl.d = -1 end
+    end)
+    
+    local inputUp = UserInputService.InputEnded:Connect(function(input, gp)
+        if gp then return end
+        if input.KeyCode == Enum.KeyCode.W then ctrl.f = 0
+        elseif input.KeyCode == Enum.KeyCode.S then ctrl.b = 0
+        elseif input.KeyCode == Enum.KeyCode.A then ctrl.l = 0
+        elseif input.KeyCode == Enum.KeyCode.D then ctrl.r = 0
+        elseif input.KeyCode == Enum.KeyCode.Space then ctrl.u = 0
+        elseif input.KeyCode == Enum.KeyCode.LeftControl then ctrl.d = 0 end
+    end)
+    
+    local renderConnection = RunService.RenderStepped:Connect(function()
+        if not isFlying or not char or not char:FindFirstChild("Humanoid") or not root then
+            -- Восстанавливаем оригинальные настройки
+            if hum then
+                hum.JumpPower = originalJumpPower
+                hum.JumpHeight = originalJumpHeight
+                hum.HipHeight = originalHipHeight
+            end
+            -- Восстанавливаем гравитацию только если NoClip не включен
+            if not isNoClipping then
+                workspace.Gravity = originalGravity
+            end
+            
+            inputDown:Disconnect()
+            inputUp:Disconnect()
+            renderConnection:Disconnect()
+            return
+        end
+        
+        local cam = workspace.CurrentCamera
+        if not cam then return end
+        
+        -- Вычисляем направление движения
+        local forward = cam.CFrame.lookVector
+        local right = cam.CFrame.rightVector
+        local up = Vector3.new(0, 1, 0)
+        
+        local moveVector = Vector3.new(0, 0, 0)
+        moveVector = moveVector + (forward * (ctrl.f + ctrl.b))
+        moveVector = moveVector + (right * (ctrl.r + ctrl.l))
+        moveVector = moveVector + (up * (ctrl.u + ctrl.d))
+        
+        if moveVector.Magnitude > 0 then
+            moveVector = moveVector.Unit * (FlyConfig.Speed * 10)
+            -- Используем BodyVelocity для YBA
+            local bv = root:FindFirstChild("BodyVelocity")
+            if not bv then
+                bv = Instance.new("BodyVelocity", root)
+                bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+            end
+            bv.Velocity = moveVector
+        else
+            -- Останавливаем движение
+            local bv = root:FindFirstChild("BodyVelocity")
+            if bv then
+                bv.Velocity = Vector3.new(0, 0, 0)
+            end
+        end
+    end)
+    
+    -- Сохраняем соединения
+    table.insert(flyConnections, inputDown)
+    table.insert(flyConnections, inputUp)
+    table.insert(flyConnections, renderConnection)
+end
+
+local function stopFly()
+    isFlying = false
+    
+    local char = Players.LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    
+    if hum then
+        -- Восстанавливаем оригинальные настройки
+        hum.JumpPower = 50
+        hum.JumpHeight = 7.2
+        hum.HipHeight = 2
+    end
+    
+    workspace.Gravity = 196.2
+    
+    -- Удаляем BodyVelocity
+    if root then
+        local bv = root:FindFirstChild("BodyVelocity")
+        if bv then
+            bv:Destroy()
+        end
+    end
+    
+    -- Отключаем все соединения
+    for _, connection in ipairs(flyConnections) do
+        if connection then
+            pcall(function() connection:Disconnect() end)
+        end
+    end
+    flyConnections = {}
+end
+
+-- NoClip из Infinite Yield
+local function startNoClip()
+    local char = Players.LocalPlayer.Character
+    if not char then return end
+    
+    isNoClipping = true
+    
+    -- Infinite Yield NoClip метод
+    local function noclip()
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then
+                part.CanCollide = false
+            end
+        end
+    end
+    
+    -- Создаем соединение для постоянного обновления NoClip
+    local noClipLoop = RunService.Heartbeat:Connect(function()
+        if not isNoClipping or not char or not char.Parent then
+            return
+        end
+        noclip()
+    end)
+    
+    table.insert(noClipConnections, noClipLoop)
+    
+    -- Создаем соединение для новых частей персонажа
+    local function setupNoClipForPart(part)
+        if part:IsA("BasePart") and part.CanCollide then
+            part.CanCollide = false
+        end
+    end
+    
+    local descendantAdded = char.DescendantAdded:Connect(setupNoClipForPart)
+    table.insert(noClipConnections, descendantAdded)
+end
+
+local function stopNoClip()
+    isNoClipping = false
+    
+    local char = Players.LocalPlayer.Character
+    if not char then return end
+    
+    -- Восстанавливаем коллизии (Infinite Yield метод)
+    for _, part in pairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = true
+        end
+    end
+    
+    -- Отключаем все соединения
+    for _, connection in ipairs(noClipConnections) do
+        if connection then
+            if typeof(connection) == "RBXScriptConnection" then
+                pcall(function() connection:Disconnect() end)
+            elseif typeof(connection) == "Instance" then
+                pcall(function() connection:Destroy() end)
+            end
+        end
+    end
+    noClipConnections = {}
+end
+
+-- Функции SpeedHack - Безопасная система без BodyVelocity
+local function startSpeedHack()
+    local char = Players.LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+    
+    isSpeedHacking = true
+    originalWalkSpeed = hum.WalkSpeed
+    originalJumpPower = hum.JumpPower
+    
+    -- Устанавливаем скорость через Humanoid (безопасный метод)
+    hum.WalkSpeed = SpeedHackConfig.Speed * 16
+    
+    -- Альтернативный метод через JumpPower для большей скорости
+    if SpeedHackConfig.UseJumpPower then
+        hum.JumpPower = SpeedHackConfig.Speed * 50
+    end
+    
+    -- Создаем соединение для обновления скорости при респавне
+    local function onCharacterAdded(newChar)
+        local newHum = newChar:WaitForChild("Humanoid")
+        if isSpeedHacking then
+            newHum.WalkSpeed = SpeedHackConfig.Speed * 16
+            if SpeedHackConfig.UseJumpPower then
+                newHum.JumpPower = SpeedHackConfig.Speed * 50
+            end
+        end
+    end
+    
+    local characterAddedConnection = Players.LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
+    table.insert(speedHackConnections, characterAddedConnection)
+    
+    -- Создаем соединение для постоянного обновления скорости
+    local speedLoop = RunService.Heartbeat:Connect(function()
+        if not isSpeedHacking then return end
+        
+        local currentChar = Players.LocalPlayer.Character
+        local currentHum = currentChar and currentChar:FindFirstChildOfClass("Humanoid")
+        
+        if currentHum then
+            -- Обновляем WalkSpeed только если она отличается
+            if currentHum.WalkSpeed ~= SpeedHackConfig.Speed * 16 then
+                currentHum.WalkSpeed = SpeedHackConfig.Speed * 16
+            end
+            
+            -- Обновляем JumpPower если используется альтернативный метод
+            if SpeedHackConfig.UseJumpPower and currentHum.JumpPower ~= SpeedHackConfig.Speed * 50 then
+                currentHum.JumpPower = SpeedHackConfig.Speed * 50
+            end
+        end
+    end)
+    
+    table.insert(speedHackConnections, speedLoop)
+end
+
+local function stopSpeedHack()
+    isSpeedHacking = false
+    
+    local char = Players.LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.WalkSpeed = originalWalkSpeed
+        hum.JumpPower = originalJumpPower
+    end
+    
+    -- Отключаем все соединения
+    for _, connection in ipairs(speedHackConnections) do
+        if connection then
+            if typeof(connection) == "RBXScriptConnection" then
+                pcall(function() connection:Disconnect() end)
+            elseif typeof(connection) == "Instance" then
+                pcall(function() connection:Destroy() end)
+            end
+        end
+    end
+    speedHackConnections = {}
+end
+
+-- Функции телепортации к игрокам
+local function startTeleport()
+    print("Starting teleport to: " .. (TeleportConfig.TargetPlayer and TeleportConfig.TargetPlayer.Name or "None"))
+    if not TeleportConfig.TargetPlayer then 
+        print("No target player selected")
+        return 
+    end
+    
+    local char = Players.LocalPlayer.Character
+    local targetChar = TeleportConfig.TargetPlayer.Character
+    if not char or not targetChar then 
+        print("Character not found")
+        return 
+    end
+    
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+    if not root or not targetRoot then 
+        print("HumanoidRootPart not found")
+        return 
+    end
+    
+    isTeleporting = true
+    print("Teleport started successfully")
+    
+    -- Сохраняем оригинальную позицию если еще не сохранена
+    if not TeleportConfig.OriginalPosition then
+        TeleportConfig.OriginalPosition = root.Position
+    end
+    
+    -- Создаем соединение для постоянной телепортации
+    local teleportLoop = RunService.Heartbeat:Connect(function()
+        if not isTeleporting or not targetChar or not targetChar.Parent then
+            return
+        end
+        
+        local currentTargetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+        if currentTargetRoot then
+            root.CFrame = currentTargetRoot.CFrame
+        end
+    end)
+    
+    table.insert(teleportConnections, teleportLoop)
+end
+
+local function stopTeleport()
+    print("Stopping teleport")
+    isTeleporting = false
+    
+    local char = Players.LocalPlayer.Character
+    if not char then 
+        print("Character not found when stopping")
+        return 
+    end
+    
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if root and TeleportConfig.OriginalPosition then
+        -- Возвращаемся на оригинальную позицию
+        root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
+        TeleportConfig.OriginalPosition = nil
+        print("Returned to original position")
+    end
+    
+    -- Отключаем все соединения
+    for _, connection in ipairs(teleportConnections) do
+        if connection then
+            if typeof(connection) == "RBXScriptConnection" then
+                pcall(function() connection:Disconnect() end)
+            end
+        end
+    end
+    teleportConnections = {}
+end
+
+local function getAlivePlayers()
+    local alivePlayers = {}
+    
+    -- Безопасная проверка Players сервиса
+    if not Players then
+        print("Players service is nil!")
+        return alivePlayers
+    end
+    
+    local allPlayers = Players:GetPlayers()
+    if not allPlayers then
+        print("Players:GetPlayers() returned nil!")
+        return alivePlayers
+    end
+    
+    print("Total players on server: " .. tostring(#allPlayers))
+    
+    -- Проверяем, что LocalPlayer существует
+    if not Players.LocalPlayer then
+        print("LocalPlayer is nil!")
+        return alivePlayers
+    end
+    
+    print("Local player: " .. tostring(Players.LocalPlayer.Name))
+    
+    for i, player in ipairs(allPlayers) do
+        print("Processing player " .. tostring(i))
+        
+        if not player then
+            print("Player " .. tostring(i) .. " is nil, skipping")
+            continue
+        end
+        
+        -- Проверяем, что у игрока есть имя
+        if not player.Name then
+            print("Player " .. tostring(i) .. " has no name, skipping")
+            continue
+        end
+        
+        print("Checking player: " .. tostring(player.Name))
+        
+        -- Безопасное сравнение с LocalPlayer
+        if player ~= Players.LocalPlayer then
+            print("Player is not local player")
+            
+            -- Простая проверка на живого игрока
+            if player.Character and player.Character:FindFirstChild("Humanoid") then
+                local humanoid = player.Character:FindFirstChild("Humanoid")
+                if humanoid.Health > 0 then
+                    print("Player is alive: " .. tostring(player.Name))
+                    table.insert(alivePlayers, player)
+                else
+                    print("Player is not alive: " .. tostring(player.Name))
+                end
+            else
+                print("Player has no character or humanoid: " .. tostring(player.Name))
+            end
+        else
+            print("Player is local player, skipping")
+        end
+    end
+    
+    print("Found " .. tostring(#alivePlayers) .. " alive players")
+    return alivePlayers
+end
+
+-- Обработка горячих клавиш для полета, NoClip и SpeedHack
+UserInputService.InputBegan:Connect(function(input, gp)
+    if not gp then
+        if FlyConfig.ToggleKey and input.KeyCode == FlyConfig.ToggleKey then
+            FlyConfig.Enabled = not FlyConfig.Enabled
+            if FlyConfig.Enabled then 
+                startFly() 
+            else 
+                stopFly() 
+            end
+            -- Обновляем GUI
+            if guiCallbacks.fly then
+                guiCallbacks.fly.Text = "Fly: " .. (FlyConfig.Enabled and "ON" or "OFF")
+            end
+        elseif NoClipConfig.ToggleKey and input.KeyCode == NoClipConfig.ToggleKey then
+            NoClipConfig.Enabled = not NoClipConfig.Enabled
+            if NoClipConfig.Enabled then 
+                startNoClip() 
+            else 
+                stopNoClip() 
+            end
+            -- Обновляем GUI
+            if guiCallbacks.noClip then
+                guiCallbacks.noClip.Text = "NoClip: " .. (NoClipConfig.Enabled and "ON" or "OFF")
+            end
+        elseif SpeedHackConfig.ToggleKey and input.KeyCode == SpeedHackConfig.ToggleKey then
+            SpeedHackConfig.Enabled = not SpeedHackConfig.Enabled
+            if SpeedHackConfig.Enabled then 
+                startSpeedHack() 
+            else 
+                stopSpeedHack() 
+            end
+            -- Обновляем GUI
+            if guiCallbacks.speedHack then
+                guiCallbacks.speedHack.Text = "SpeedHack: " .. (SpeedHackConfig.Enabled and "ON" or "OFF")
+            end
+        elseif TeleportConfig.ToggleKey and input.KeyCode == TeleportConfig.ToggleKey then
+            if TeleportConfig.Enabled then
+                stopTeleport()
+                TeleportConfig.Enabled = false
+            else
+                if TeleportConfig.TargetPlayer then
+                    startTeleport()
+                    TeleportConfig.Enabled = true
+                end
+            end
+            -- Обновляем GUI
+            if guiCallbacks.teleport then
+                guiCallbacks.teleport.Text = "Teleport: " .. (TeleportConfig.Enabled and "ON" or "OFF")
+            end
+        end
+    end
+end)
+
+-- State
+local ESPs, Lines = {}, {}
+local FOVCircle
+
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Thickness = 2
+FOVCircle.NumSides = 100
+FOVCircle.Filled = false
+FOVCircle.Visible = false
+
+-- Utils
+local function getName(p)
+    return p.Name
+end
+local function getHealth(p)
+    local h = p.Character and p.Character:FindFirstChild("Humanoid")
+    return (h and h.Health>0) and math.floor(h.Health) or 0
+end
+local function isAlive(p) return getHealth(p)>0 end
+local function getRainbow() return Color3.fromHSV((tick()%5)/5,1,1) end
+local function getESPColor(p)
+    if Config.ESP.Rainbow then return getRainbow() end
+    if Config.ESP.TeamCheck then return (p.TeamColor==Players.LocalPlayer.TeamColor) and Config.ESP.TeamColor or Config.ESP.EnemyColor end
+    return Config.ESP.FillColor
+end
+local function getOutlineColor(p)
+    if Config.ESP.Rainbow then return getRainbow() end
+    if Config.ESP.TeamCheck then return (p.TeamColor==Players.LocalPlayer.TeamColor) and Config.ESP.TeamColor or Config.ESP.EnemyColor end
+    return Config.ESP.OutlineColor
+end
+local function rayVisible(p)
+    if not Config.Aimbot.VisibilityCheck then return true end
+    local cam=workspace.CurrentCamera
+    local head=p.Character and p.Character:FindFirstChild("Head") if not head then return false end
+    local rp=RaycastParams.new()
+    rp.FilterType=Enum.RaycastFilterType.Blacklist
+    rp.FilterDescendantsInstances={Players.LocalPlayer.Character,p.Character}
+    return not workspace:Raycast(cam.CFrame.Position, head.Position-cam.CFrame.Position, rp)
+end
+
+-- ESP handlers
+local function createOrUpdateESP(p)
+    if not ESPs[p] then
+        local hl=Instance.new("Highlight"); hl.Adornee=p.Character; hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop; hl.Parent=p.Character
+        local bg=Instance.new("BillboardGui",p.Character); bg.AlwaysOnTop=true; bg.Size=UDim2.new(0,200,0,30); bg.StudsOffset=Vector3.new(0,2,0)
+        local tl=Instance.new("TextLabel",bg); tl.Size=UDim2.new(1,0,1,0); tl.BackgroundTransparency=1; tl.Font=Config.ESP.Font; tl.TextSize=18
+        ESPs[p]={hl=hl,bg=bg,tl=tl}
+    end
+    local d=ESPs[p]
+    d.hl.FillColor=getESPColor(p); d.hl.FillTransparency=Config.ESP.FillTransparency
+    d.hl.OutlineColor=getOutlineColor(p); d.hl.OutlineTransparency=Config.ESP.ShowOutline and Config.ESP.OutlineTransparency or 1
+    d.tl.TextColor3=Config.ESP.TextColor
+    d.tl.Text=string.format("%s | HP:%d | %dm",getName(p),getHealth(p),math.floor((Players.LocalPlayer.Character.HumanoidRootPart.Position-p.Character.HumanoidRootPart.Position).Magnitude))
+end
+
+local function removeESP(p)
+    if ESPs[p] then 
+        if ESPs[p].hl and ESPs[p].hl.Parent then ESPs[p].hl:Destroy() end
+        if ESPs[p].bg and ESPs[p].bg.Parent then ESPs[p].bg:Destroy() end
+        ESPs[p]=nil 
+    end
+    if Lines[p] then Lines[p]:Remove(); Lines[p]=nil end
+end
+
+-- Улучшенная система отслеживания игроков
+local function isPlayerAlive(player)
+    if not player then 
+        print("Player is nil")
+        return false 
+    end
+    
+    -- Проверяем, что у игрока есть имя
+    if not player.Name then
+        print("Player has no name")
+        return false
+    end
+    
+    if not player.Character then 
+        print("Player " .. tostring(player.Name) .. " has no character")
+        return false 
+    end
+    local humanoid = player.Character:FindFirstChild("Humanoid")
+    if not humanoid then 
+        print("Player " .. tostring(player.Name) .. " has no humanoid")
+        return false 
+    end
+    local isAlive = humanoid.Health > 0
+    print("Player " .. tostring(player.Name) .. " health: " .. tostring(humanoid.Health) .. ", alive: " .. tostring(isAlive))
+    return isAlive
+end
+
+local function isPlayerOnServer(player)
+    if not player or not player.Character then return false end
+    local humanoid = player.Character:FindFirstChild("Humanoid")
+    if not humanoid then return false end
+    return humanoid.Health > 0 and humanoid.Parent ~= nil
+end
+
+-- Обработка смерти и респавна игроков
+local function onPlayerDied(player)
+    removeESP(player)
+end
+
+local function onPlayerRespawned(player)
+    if Config.ESP.Enabled and player ~= Players.LocalPlayer then
+        spawn(function()
+            wait(2) -- Увеличиваем задержку для полного респавна
+            if isPlayerAlive(player) then
+                createOrUpdateESP(player)
+            end
+        end)
+    end
+end
+
+-- Подключение обработчиков для каждого игрока
+local function setupPlayerESP(player)
+    if player == Players.LocalPlayer then return end
+    
+    -- Обработка смерти
+    local function onCharacterAdded(char)
+        local humanoid = char:WaitForChild("Humanoid")
+        
+        -- Обработка смерти
+        humanoid.Died:Connect(function()
+            onPlayerDied(player)
+        end)
+        
+        -- Обработка респавна через StateChanged
+        humanoid.StateChanged:Connect(function(_, new)
+            if new == Enum.HumanoidStateType.Dead then
+                onPlayerDied(player)
+            elseif new == Enum.HumanoidStateType.Running then
+                onPlayerRespawned(player)
+            end
+        end)
+        
+        -- Дополнительная проверка через CharacterRemoving
+        char.AncestryChanged:Connect(function(_, parent)
+            if not parent then
+                onPlayerDied(player)
+            end
+        end)
+    end
+    
+    if player.Character then
+        onCharacterAdded(player.Character)
+    end
+    player.CharacterAdded:Connect(onCharacterAdded)
+    player.CharacterRemoving:Connect(function()
+        onPlayerDied(player)
+    end)
+end
+
+-- Настройка ESP для существующих игроков
+for _, player in ipairs(Players:GetPlayers()) do
+    setupPlayerESP(player)
+end
+
+-- Настройка ESP для новых игроков
+Players.PlayerAdded:Connect(setupPlayerESP)
+
+-- Clean up on player leaving
+Players.PlayerRemoving:Connect(function(player)
+    removeESP(player)
+end)
+
+local function getClosestTarget()
+    local cam = workspace.CurrentCamera
+    local closest, minDist = nil, Config.Aimbot.FOV
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p == Players.LocalPlayer then continue end
+        if Config.Aimbot.TeamCheck and p.Team == Players.LocalPlayer.Team then continue end
+        if not isAlive(p) then continue end
+        if Config.Aimbot.VisibilityCheck and not rayVisible(p) then continue end
+
+        local head = p.Character and p.Character:FindFirstChild("Head")
+        if not head then continue end
+        local screenPos, onScreen = cam:WorldToViewportPoint(head.Position)
+        if not onScreen then continue end
+
+        local dist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(cam.ViewportSize.X/2, cam.ViewportSize.Y/2)).Magnitude
+        if dist < minDist then
+            closest = head
+            minDist = dist
+        end
+    end
+    return closest
+end
+
+-- Render loop: only alive players on server
+RunService.RenderStepped:Connect(function()
+    local cam = workspace.CurrentCamera
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player == Players.LocalPlayer then continue end
+        
+        local char = player.Character
+        local hum = char and char:FindFirstChild("Humanoid")
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        
+        if isPlayerAlive(player) and root then
+            if Config.ESP.Enabled then
+                createOrUpdateESP(player)
+                if Config.ESP.ShowLines then
+                    if not Lines[player] then
+                        local ln = Drawing.new("Line")
+                        ln.Thickness = 2
+                        ln.Transparency = 1
+                        Lines[player] = ln
+                    end
+                    local pos, onScreen = cam:WorldToViewportPoint(root.Position)
+                    Lines[player].Visible = onScreen
+                    if onScreen then
+                        Lines[player].From = Vector2.new(cam.ViewportSize.X/2, cam.ViewportSize.Y)
+                        Lines[player].To = Vector2.new(pos.X, pos.Y)
+                        Lines[player].Color = getESPColor(player)
+                    end
+                elseif Lines[player] then
+                    Lines[player].Visible = false
+                end
+            else
+                removeESP(player)
+            end
+        else
+            -- Убираем ESP если игрок мертв
+            removeESP(player)
+        end
+    end
+
+    -- Aimbot
+if Config.Aimbot.Enabled then
+    local target = getClosestTarget()
+    if target then
+        local cam = workspace.CurrentCamera
+        cam.CFrame = CFrame.lookAt(cam.CFrame.Position, target.Position)
+    end
+end
+
+-- FOV Circle update
+local cam = workspace.CurrentCamera
+FOVCircle.Visible = Config.Aimbot.Enabled
+FOVCircle.Position = Vector2.new(cam.ViewportSize.X/2, cam.ViewportSize.Y/2)
+FOVCircle.Color = Config.Aimbot.FOVRainbow and getRainbow() or Config.Aimbot.FOVColor
+FOVCircle.Radius = Config.Aimbot.FOV
+
+
+    -- Aimbot logic unchanged below...
+end)
+
+-- Hotkeys binding
+UserInputService.InputBegan:Connect(function(inp, gp)
+    if gp then return end
+    if inp.UserInputType == Enum.UserInputType.Keyboard then
+        if Config.ESP.ToggleKey and inp.KeyCode == Config.ESP.ToggleKey then
+            Config.ESP.Enabled = not Config.ESP.Enabled
+            print("ESP toggled:", Config.ESP.Enabled)
+        elseif Config.Aimbot.ToggleKey and inp.KeyCode == Config.Aimbot.ToggleKey then
+            Config.Aimbot.Enabled = not Config.Aimbot.Enabled
+            print("Aimbot toggled:", Config.Aimbot.Enabled)
+        end
+    end
+end)
+
+-- GUI Setup 
+local screenGui = Instance.new("ScreenGui", CoreGui)
+screenGui.Name = "SslkinGui"
+screenGui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame", screenGui)
+frame.Name = "MainFrame"
+frame.Position = UDim2.new(0, 20, 0.5, -200)
+frame.Size = UDim2.new(0, 300, 0, 0)
+frame.AutomaticSize = Enum.AutomaticSize.Y
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+
+local titleBar = Instance.new("Frame", frame)
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 36)
+titleBar.Position = UDim2.new(0, 0, 0, 0)
+titleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+
+local titleText = Instance.new("TextLabel", titleBar)
+titleText.Name = "TitleText"
+titleText.Size = UDim2.new(1, -40, 1, 0)
+titleText.Position = UDim2.new(0, 10, 0, 0)
+titleText.BackgroundTransparency = 1
+titleText.Text = "SSLKIN ESP + AIMBOT + FLY"
+titleText.Font = Enum.Font.GothamBold
+titleText.TextSize = 14
+titleText.TextColor3 = Color3.new(1, 1, 1)
+titleText.TextXAlignment = Enum.TextXAlignment.Left
+
+local collapseBtn = Instance.new("TextButton", titleBar)
+collapseBtn.Name = "Collapse"
+collapseBtn.Size = UDim2.new(0, 26, 0, 26)
+collapseBtn.Position = UDim2.new(1, -30, 0.5, -13)
+collapseBtn.Text = "−"
+collapseBtn.Font = Enum.Font.GothamBold
+collapseBtn.TextSize = 18
+collapseBtn.TextColor3 = Color3.new(1, 1, 1)
+collapseBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+Instance.new("UICorner", collapseBtn).CornerRadius = UDim.new(0, 6)
+
+local scroll = Instance.new("ScrollingFrame", frame)
+scroll.Position = UDim2.new(0, 0, 0, 30)
+scroll.Size = UDim2.new(1, 0, 1, -46)
+scroll.CanvasSize = UDim2.new(0, 0, 3, 0)
+scroll.ScrollBarThickness = 6
+scroll.BackgroundTransparency = 1
+scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+scroll.ClipsDescendants = true
+
+local innerContainer = Instance.new("Frame", scroll)
+innerContainer.Name = "InnerContainer"
+innerContainer.BackgroundTransparency = 1
+innerContainer.Size = UDim2.new(1, -20, 0, 0)
+innerContainer.Position = UDim2.new(0, 10, 0, 0)
+innerContainer.AutomaticSize = Enum.AutomaticSize.Y
+innerContainer.ClipsDescendants = false
+
+local function toggleMenu()
+    Config.MenuCollapsed = not Config.MenuCollapsed
+    local collapsed = Config.MenuCollapsed
+    local size = collapsed and UDim2.new(0, 280, 0, 40) or UDim2.new(0, 280, 0, 800)
+    local text = collapsed and "+" or "−"
+    local color = collapsed and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
+
+    TweenService:Create(frame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = size
+    }):Play()
+
+    TweenService:Create(collapseBtn, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        BackgroundColor3 = color
+    }):Play()
+
+    collapseBtn.Text = text
+    scroll.Visible = not collapsed
+end
+
+collapseBtn.MouseButton1Click:Connect(toggleMenu)
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if not gp and input.KeyCode == Enum.KeyCode.Insert then
+        toggleMenu()
+    end
+end)
+
+local UIListLayout = Instance.new("UIListLayout", innerContainer)
+UIListLayout.Padding = UDim.new(0, 8)
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- Helper functions
+local function sectionHeader(text)
+	-- Добавляем отступ перед заголовком
+	local spacer = Instance.new("Frame", innerContainer)
+	spacer.Size = UDim2.new(1, 0, 0, 10)
+	spacer.BackgroundTransparency = 1
+	
+	local lbl = Instance.new("TextLabel", innerContainer)
+	lbl.Text = text
+	lbl.Size = UDim2.new(1, -10, 0, 30)
+	lbl.Font = Enum.Font.GothamBold
+	lbl.TextSize = 16
+	lbl.TextColor3 = Color3.fromRGB(255,255,255)
+	lbl.BackgroundTransparency = 1
+end
+
+local function toggle(label, default, callback)
+	local btn = Instance.new("TextButton", innerContainer)
+	btn.Size = UDim2.new(1, -10, 0, 28)
+	btn.Text = label .. ": " .. (default and "ON" or "OFF")
+	btn.Font = Enum.Font.Gotham
+	btn.TextSize = 14
+	btn.TextColor3 = Color3.new(1,1,1)
+	btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+	btn.AutoButtonColor = false
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+
+	btn.MouseButton1Click:Connect(function()
+		default = not default
+		btn.Text = label .. ": " .. (default and "ON" or "OFF")
+		callback(default)
+	end)
+	
+	return btn
+end
+
+local function slider(label, min, max, value, callback)
+	local container = Instance.new("Frame", innerContainer)
+	container.Size = UDim2.new(1, -10, 0, 36)
+	container.BackgroundTransparency = 1
+
+	local lbl = Instance.new("TextLabel", container)
+	lbl.Text = label .. ": " .. value
+	lbl.Size = UDim2.new(1, 0, 0.5, 0)
+	lbl.Font = Enum.Font.Gotham
+	lbl.TextSize = 13
+	lbl.TextColor3 = Color3.new(1,1,1)
+	lbl.BackgroundTransparency = 1
+
+	local sliderBack = Instance.new("Frame", container)
+	sliderBack.Position = UDim2.new(0,0,0.5,4)
+	sliderBack.Size = UDim2.new(1, 0, 0, 6)
+	sliderBack.BackgroundColor3 = Color3.fromRGB(50,50,50)
+	Instance.new("UICorner", sliderBack).CornerRadius = UDim.new(1,0)
+
+	local sliderFill = Instance.new("Frame", sliderBack)
+	sliderFill.Size = UDim2.new((value - min) / (max - min), 0, 1, 0)
+	sliderFill.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	Instance.new("UICorner", sliderFill).CornerRadius = UDim.new(1,0)
+
+	local dragging = false
+	sliderBack.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = false
+		end
+	end)
+	RunService.RenderStepped:Connect(function()
+		if dragging then
+			local pos = UserInputService:GetMouseLocation().X
+			local abs = sliderBack.AbsolutePosition.X
+			local width = sliderBack.AbsoluteSize.X
+			local pct = math.clamp((pos - abs) / width, 0, 1)
+			local newVal = math.floor((min + (max - min) * pct) * 10) / 10
+			sliderFill.Size = UDim2.new(pct, 0, 1, 0)
+			lbl.Text = label .. ": " .. newVal
+			callback(newVal)
+		end
+	end)
+end
+
+local function colorPicker(labelText, currentColor, callback)
+    local lbl = Instance.new("TextLabel", innerContainer)
+    lbl.Text = labelText
+    lbl.TextColor3 = Color3.new(1,1,1)
+    lbl.BackgroundTransparency = 1
+    lbl.Size = UDim2.new(1, -10, 0, 20)
+    lbl.Font = Enum.Font.SourceSans
+    lbl.TextSize = 14
+
+    local colors = {
+        Color3.fromRGB(255, 255, 255),
+        Color3.fromRGB(255, 0, 0),
+        Color3.fromRGB(0, 255, 0),
+        Color3.fromRGB(0, 0, 255),
+        Color3.fromRGB(255, 255, 0),
+        Color3.fromRGB(255, 0, 255),
+        Color3.fromRGB(0, 255, 255),
+        Color3.fromRGB(128, 128, 128),
+        Color3.fromRGB(255, 165, 0),
+    }
+
+    local row = Instance.new("Frame", innerContainer)
+    row.Size = UDim2.new(1, -10, 0, 28)
+    row.BackgroundTransparency = 1
+
+    local layout = Instance.new("UIListLayout", row)
+    layout.FillDirection = Enum.FillDirection.Horizontal
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    layout.Padding = UDim.new(0, 4)
+
+    for _, clr in pairs(colors) do
+        local btn = Instance.new("TextButton", row)
+        btn.Size = UDim2.new(0, 24, 0, 24)
+        btn.BackgroundColor3 = clr
+        btn.Text = ""
+        btn.AutoButtonColor = false
+        btn.MouseButton1Click:Connect(function()
+            callback(clr)
+        end)
+    end
+end
+
+local function speedInput(label, currentSpeed, callback)
+    local container = Instance.new("Frame", innerContainer)
+    container.Size = UDim2.new(1, -10, 0, 36)
+    container.BackgroundTransparency = 1
+
+    local lbl = Instance.new("TextLabel", container)
+    lbl.Text = label .. ": " .. currentSpeed
+    lbl.Size = UDim2.new(0.7, 0, 0.5, 0)
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextSize = 13
+    lbl.TextColor3 = Color3.new(1,1,1)
+    lbl.BackgroundTransparency = 1
+
+    local inputBox = Instance.new("TextBox", container)
+    inputBox.Position = UDim2.new(0.7, 5, 0.25, 0)
+    inputBox.Size = UDim2.new(0.3, -5, 0.5, 0)
+    inputBox.Text = tostring(currentSpeed)
+    inputBox.Font = Enum.Font.Gotham
+    inputBox.TextSize = 12
+    inputBox.TextColor3 = Color3.new(1,1,1)
+    inputBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    inputBox.PlaceholderText = "Speed"
+    Instance.new("UICorner", inputBox).CornerRadius = UDim.new(0,4)
+
+    inputBox.FocusLost:Connect(function()
+        local newSpeed = tonumber(inputBox.Text)
+        if newSpeed and newSpeed > 0 then
+            callback(newSpeed)
+            lbl.Text = label .. ": " .. newSpeed
+        else
+            inputBox.Text = tostring(currentSpeed)
+        end
+    end)
+
+    return lbl, inputBox
+end
+
+local function playerSelector(label, currentPlayer, callback)
+    local container = Instance.new("Frame", innerContainer)
+    container.Size = UDim2.new(1, -10, 0, 36)
+    container.BackgroundTransparency = 1
+
+    local lbl = Instance.new("TextLabel", container)
+    lbl.Text = label .. ": " .. (currentPlayer and currentPlayer.Name or "None")
+    lbl.Size = UDim2.new(0.7, 0, 0.5, 0)
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextSize = 13
+    lbl.TextColor3 = Color3.new(1,1,1)
+    lbl.BackgroundTransparency = 1
+
+    local selectBtn = Instance.new("TextButton", container)
+    selectBtn.Position = UDim2.new(0.7, 5, 0.25, 0)
+    selectBtn.Size = UDim2.new(0.3, -5, 0.5, 0)
+    selectBtn.Text = "Select Player"
+    selectBtn.Font = Enum.Font.Gotham
+    selectBtn.TextSize = 12
+    selectBtn.TextColor3 = Color3.new(1,1,1)
+    selectBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    Instance.new("UICorner", selectBtn).CornerRadius = UDim.new(0,4)
+
+    selectBtn.MouseButton1Click:Connect(function()
+        print("=== SELECT PLAYER BUTTON CLICKED ===")
+        
+        -- Проверяем, что Players сервис доступен
+        if not Players then
+            print("Players service is nil!")
+            return
+        end
+        
+        local alivePlayers = getAlivePlayers()
+        print("Alive players count: " .. #alivePlayers)
+        
+        -- Выводим имена всех игроков для отладки
+        for i, player in ipairs(alivePlayers) do
+            if player and player.Name then
+                print("Player " .. i .. ": " .. player.Name)
+            else
+                print("Player " .. i .. ": nil or no name")
+            end
+        end
+        
+        if #alivePlayers == 0 then
+            lbl.Text = label .. ": No players available"
+            print("No players available")
+            return
+        end
+        
+        print("Creating player window...")
+
+        -- Создаем простое окно со списком игроков
+        local playerWindow = Instance.new("Frame", CoreGui)
+        playerWindow.Size = UDim2.new(0, 300, 0, 400)
+        playerWindow.Position = UDim2.new(0.5, -150, 0.5, -200)
+        playerWindow.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+        playerWindow.BorderSizePixel = 0
+        playerWindow.ZIndex = 1000
+        print("Player window created at position: " .. tostring(playerWindow.Position))
+        print("Player window size: " .. tostring(playerWindow.Size))
+
+        -- Простой заголовок
+        local titleText = Instance.new("TextLabel", playerWindow)
+        titleText.Size = UDim2.new(1, -20, 0, 40)
+        titleText.Position = UDim2.new(0, 10, 0, 10)
+        titleText.BackgroundTransparency = 1
+        titleText.Text = "Select Player to Teleport"
+        titleText.Font = Enum.Font.GothamBold
+        titleText.TextSize = 16
+        titleText.TextColor3 = Color3.new(1, 1, 1)
+        titleText.TextXAlignment = Enum.TextXAlignment.Left
+
+        -- Кнопка закрытия
+        local closeBtn = Instance.new("TextButton", playerWindow)
+        closeBtn.Size = UDim2.new(0, 30, 0, 30)
+        closeBtn.Position = UDim2.new(1, -40, 0, 10)
+        closeBtn.Text = "X"
+        closeBtn.Font = Enum.Font.GothamBold
+        closeBtn.TextSize = 16
+        closeBtn.TextColor3 = Color3.new(1, 1, 1)
+        closeBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+        closeBtn.AutoButtonColor = false
+
+        closeBtn.MouseButton1Click:Connect(function()
+            print("Close button clicked")
+            playerWindow:Destroy()
+        end)
+
+        -- Простой список игроков
+        local yOffset = 60
+        for i, player in ipairs(alivePlayers) do
+            local playerBtn = Instance.new("TextButton", playerWindow)
+            playerBtn.Size = UDim2.new(1, -20, 0, 30)
+            playerBtn.Position = UDim2.new(0, 10, 0, yOffset)
+            playerBtn.Text = player.Name
+            playerBtn.Font = Enum.Font.Gotham
+            playerBtn.TextSize = 14
+            playerBtn.TextColor3 = Color3.new(1,1,1)
+            playerBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+            playerBtn.AutoButtonColor = false
+
+            playerBtn.MouseButton1Click:Connect(function()
+                print("Selected player: " .. player.Name)
+                callback(player)
+                lbl.Text = label .. ": " .. player.Name
+                playerWindow:Destroy()
+            end)
+
+            playerBtn.MouseEnter:Connect(function()
+                playerBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+            end)
+
+            playerBtn.MouseLeave:Connect(function()
+                playerBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+            end)
+            
+            yOffset = yOffset + 35
+        end
+
+        print("Player window setup complete!")
+        print("Window should be visible now")
+        
+        -- Простое закрытие по ESC
+        local closeConnection
+        closeConnection = UserInputService.InputBegan:Connect(function(input, gp)
+            if input.KeyCode == Enum.KeyCode.Escape then
+                print("ESC pressed, closing window")
+                playerWindow:Destroy()
+                if closeConnection then
+                    closeConnection:Disconnect()
+                end
+            end
+        end)
+    end)
+
+    return lbl, selectBtn
+end
+
+-- 🔥 Горячие клавиши переключения ESP / Aimbot / Fly
+local function keyBindButton(name, currentKey, callback)
+    local btn = Instance.new("TextButton", innerContainer)
+    btn.Size = UDim2.new(1, -10, 0, 24)
+    btn.Text = name .. " Hotkey: [" .. (currentKey and tostring(currentKey.Name) or "None") .. "]"
+    btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 13
+    btn.AutoButtonColor = false
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+
+    btn.MouseButton1Click:Connect(function()
+        btn.Text = name .. " Hotkey: [Press any key]"
+        local conn
+        conn = UserInputService.InputBegan:Connect(function(input, gp)
+            if not gp and input.UserInputType == Enum.UserInputType.Keyboard then
+                conn:Disconnect()
+                callback(input.KeyCode)
+                btn.Text = name .. " Hotkey: [" .. tostring(input.KeyCode.Name) .. "]"
+            end
+        end)
+    end)
+end
+
+-- Кнопки назначения горячих клавиш
+keyBindButton("ESP", Config.ESP.ToggleKey, function(newKey)
+    Config.ESP.ToggleKey = newKey
+end)
+
+keyBindButton("Aimbot", Config.Aimbot.ToggleKey, function(newKey)
+    Config.Aimbot.ToggleKey = newKey
+end)
+
+keyBindButton("Fly", FlyConfig.ToggleKey, function(newKey)
+    FlyConfig.ToggleKey = newKey
+end)
+
+keyBindButton("NoClip", NoClipConfig.ToggleKey, function(newKey)
+    NoClipConfig.ToggleKey = newKey
+end)
+
+keyBindButton("SpeedHack", SpeedHackConfig.ToggleKey, function(newKey)
+    SpeedHackConfig.ToggleKey = newKey
+end)
+
+keyBindButton("Teleport", TeleportConfig.ToggleKey, function(newKey)
+    TeleportConfig.ToggleKey = newKey
+end)
+
+
+
+-- 🟦 ESP
+sectionHeader("🔷ESP Settings")
+toggle("ESP", Config.ESP.Enabled, function(v) Config.ESP.Enabled = v end)
+toggle("Team Check", Config.ESP.TeamCheck, function(v) Config.ESP.TeamCheck = v end)
+toggle("Show Outline", Config.ESP.ShowOutline, function(v) Config.ESP.ShowOutline = v end)
+toggle("Show Lines", Config.ESP.ShowLines, function(v) Config.ESP.ShowLines = v end)
+toggle("Rainbow Colors", Config.ESP.Rainbow, function(v) Config.ESP.Rainbow = v end)
+
+colorPicker("Fill Color", Config.ESP.FillColor, function(c) Config.ESP.FillColor = c end)
+colorPicker("Outline Color", Config.ESP.OutlineColor, function(c) Config.ESP.OutlineColor = c end)
+colorPicker("Text Color", Config.ESP.TextColor, function(c) Config.ESP.TextColor = c end)
+slider("Fill Transparency", 0, 1, Config.ESP.FillTransparency, function(v) Config.ESP.FillTransparency = v end)
+slider("Outline Transparency", 0, 1, Config.ESP.OutlineTransparency, function(v) Config.ESP.OutlineTransparency = v end)
+
+-- Разделитель
+local divider1 = Instance.new("Frame", innerContainer)
+divider1.Size = UDim2.new(1, -10, 0, 2)
+divider1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+divider1.BorderSizePixel = 0
+
+-- 🟥 Aimbot
+sectionHeader("🔷Aimbot Settings")
+toggle("Aimbot", Config.Aimbot.Enabled, function(v) Config.Aimbot.Enabled = v end)
+toggle("Team Check", Config.Aimbot.TeamCheck, function(v) Config.Aimbot.TeamCheck = v end)
+toggle("Visibility Check", Config.Aimbot.VisibilityCheck, function(v) Config.Aimbot.VisibilityCheck = v end)
+slider("FOV Radius", 10, 500, Config.Aimbot.FOV, function(v) Config.Aimbot.FOV = v end)
+toggle("FOV Rainbow", Config.Aimbot.FOVRainbow, function(v) Config.Aimbot.FOVRainbow = v end)
+colorPicker("Aimbot FOV Color", Config.Aimbot.FOVColor, function(c) Config.Aimbot.FOVColor = c end)
+
+-- Разделитель
+local divider2 = Instance.new("Frame", innerContainer)
+divider2.Size = UDim2.new(1, -10, 0, 2)
+divider2.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+divider2.BorderSizePixel = 0
+
+-- Система обновления GUI
+local guiCallbacks = {}
+
+-- Функция для обновления отображения статуса в реальном времени
+local function updateStatusDisplay()
+    if guiCallbacks.fly then
+        guiCallbacks.fly.Text = "Fly: " .. (FlyConfig.Enabled and "ON" or "OFF")
+    end
+    if guiCallbacks.noClip then
+        guiCallbacks.noClip.Text = "NoClip: " .. (NoClipConfig.Enabled and "ON" or "OFF")
+    end
+    if guiCallbacks.speedHack then
+        guiCallbacks.speedHack.Text = "SpeedHack: " .. (SpeedHackConfig.Enabled and "ON" or "OFF")
+    end
+    if guiCallbacks.teleport then
+        guiCallbacks.teleport.Text = "Teleport: " .. (TeleportConfig.Enabled and "ON" or "OFF")
+    end
+    if teleportToggleBtn then
+        teleportToggleBtn.Text = "Teleport: " .. (TeleportConfig.Enabled and "ON" or "OFF")
+    end
+end
+
+-- Обновляем отображение каждые 0.5 секунды
+RunService.Heartbeat:Connect(function()
+    updateStatusDisplay()
+end)
+
+-- 🟨 Fly System Integration
+sectionHeader("🟨 Fly Settings")
+
+local flyToggleBtn = toggle("Fly", FlyConfig.Enabled, function(v)
+    FlyConfig.Enabled = v
+    if v then startFly() else stopFly() end
+    -- Обновляем текст кнопки
+    if guiCallbacks.fly then
+        guiCallbacks.fly.Text = "Fly: " .. (v and "ON" or "OFF")
+    end
+end)
+guiCallbacks.fly = flyToggleBtn
+
+slider("Fly Speed", 0.1, 10, FlyConfig.Speed, function(v)
+    FlyConfig.Speed = v
+end)
+
+-- Кастомный ввод скорости для полета
+speedInput("Custom Fly Speed", FlyConfig.Speed, function(v)
+    FlyConfig.Speed = v
+end)
+
+-- Разделитель
+local divider3 = Instance.new("Frame", innerContainer)
+divider3.Size = UDim2.new(1, -10, 0, 2)
+divider3.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+divider3.BorderSizePixel = 0
+
+-- 🟪 NoClip System Integration
+sectionHeader("🟪 NoClip Settings")
+
+local noClipToggleBtn = toggle("NoClip", NoClipConfig.Enabled, function(v)
+    NoClipConfig.Enabled = v
+    if v then startNoClip() else stopNoClip() end
+    -- Обновляем текст кнопки
+    if guiCallbacks.noClip then
+        guiCallbacks.noClip.Text = "NoClip: " .. (v and "ON" or "OFF")
+    end
+end)
+guiCallbacks.noClip = noClipToggleBtn
+
+-- Разделитель
+local divider4 = Instance.new("Frame", innerContainer)
+divider4.Size = UDim2.new(1, -10, 0, 2)
+divider4.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+divider4.BorderSizePixel = 0
+
+-- 🟦 SpeedHack System Integration
+sectionHeader("🟦 SpeedHack Settings")
+
+local speedHackToggleBtn = toggle("SpeedHack", SpeedHackConfig.Enabled, function(v)
+    SpeedHackConfig.Enabled = v
+    if v then startSpeedHack() else stopSpeedHack() end
+    -- Обновляем текст кнопки
+    if guiCallbacks.speedHack then
+        guiCallbacks.speedHack.Text = "SpeedHack: " .. (v and "ON" or "OFF")
+    end
+end)
+guiCallbacks.speedHack = speedHackToggleBtn
+
+toggle("Use JumpPower Method", SpeedHackConfig.UseJumpPower, function(v)
+    SpeedHackConfig.UseJumpPower = v
+    -- Перезапускаем SpeedHack если он активен
+    if SpeedHackConfig.Enabled then
+        stopSpeedHack()
+        startSpeedHack()
+    end
+end)
+
+slider("SpeedHack Speed", 0.1, 10, SpeedHackConfig.Speed, function(v)
+    SpeedHackConfig.Speed = v
+    -- Обновляем скорость если SpeedHack активен
+    if SpeedHackConfig.Enabled then
+        local char = Players.LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.WalkSpeed = v * 16
+            if SpeedHackConfig.UseJumpPower then
+                hum.JumpPower = v * 50
+            end
+        end
+    end
+end)
+
+-- Кастомный ввод скорости для SpeedHack
+speedInput("Custom SpeedHack Speed", SpeedHackConfig.Speed, function(v)
+    SpeedHackConfig.Speed = v
+    -- Обновляем скорость если SpeedHack активен
+    if SpeedHackConfig.Enabled then
+        local char = Players.LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.WalkSpeed = v * 16
+            if SpeedHackConfig.UseJumpPower then
+                hum.JumpPower = v * 50
+            end
+        end
+    end
+end)
+
+-- Разделитель
+local divider5 = Instance.new("Frame", innerContainer)
+divider5.Size = UDim2.new(1, -10, 0, 2)
+divider5.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+divider5.BorderSizePixel = 0
+
+-- 🟩 Teleport System Integration
+sectionHeader("🟩 Teleport Settings")
+
+-- Создаем специальную кнопку для телепортации
+local teleportToggleBtn = Instance.new("TextButton", innerContainer)
+teleportToggleBtn.Size = UDim2.new(1, -10, 0, 28)
+teleportToggleBtn.Text = "Teleport: " .. (TeleportConfig.Enabled and "ON" or "OFF")
+teleportToggleBtn.Font = Enum.Font.Gotham
+teleportToggleBtn.TextSize = 14
+teleportToggleBtn.TextColor3 = Color3.new(1,1,1)
+teleportToggleBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+teleportToggleBtn.AutoButtonColor = false
+Instance.new("UICorner", teleportToggleBtn).CornerRadius = UDim.new(0,6)
+
+teleportToggleBtn.MouseButton1Click:Connect(function()
+    if TeleportConfig.Enabled then
+        -- Выключаем телепортацию
+        stopTeleport()
+        TeleportConfig.Enabled = false
+        teleportToggleBtn.Text = "Teleport: OFF"
+    else
+        -- Включаем телепортацию
+        if TeleportConfig.TargetPlayer then
+            startTeleport()
+            TeleportConfig.Enabled = true
+            teleportToggleBtn.Text = "Teleport: ON"
+        else
+            teleportToggleBtn.Text = "Teleport: Select Player First"
+        end
+    end
+end)
+guiCallbacks.teleport = teleportToggleBtn
+
+-- Селектор игрока
+playerSelector("Target Player", TeleportConfig.TargetPlayer, function(player)
+    TeleportConfig.TargetPlayer = player
+end)
+
+-- Кнопка для быстрого старта/стопа телепортации
+local quickTeleportBtn = Instance.new("TextButton", innerContainer)
+quickTeleportBtn.Size = UDim2.new(1, -10, 0, 28)
+quickTeleportBtn.Text = "Start/Stop Teleport"
+quickTeleportBtn.Font = Enum.Font.Gotham
+quickTeleportBtn.TextSize = 14
+quickTeleportBtn.TextColor3 = Color3.new(1,1,1)
+quickTeleportBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+quickTeleportBtn.AutoButtonColor = false
+Instance.new("UICorner", quickTeleportBtn).CornerRadius = UDim.new(0,6)
+
+quickTeleportBtn.MouseButton1Click:Connect(function()
+    if TeleportConfig.Enabled then
+        stopTeleport()
+        TeleportConfig.Enabled = false
+        quickTeleportBtn.Text = "Start Teleport"
+        teleportToggleBtn.Text = "Teleport: OFF"
+    else
+        if TeleportConfig.TargetPlayer then
+            startTeleport()
+            TeleportConfig.Enabled = true
+            quickTeleportBtn.Text = "Stop Teleport"
+            teleportToggleBtn.Text = "Teleport: ON"
+        else
+            quickTeleportBtn.Text = "Select Player First"
+        end
+    end
+end) 
