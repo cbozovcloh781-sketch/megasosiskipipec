@@ -441,8 +441,18 @@ local function createPlayerSelectionWindow()
     listLayout.Padding = UDim.new(0, 5)
     listLayout.SortOrder = Enum.SortOrder.LayoutOrder
     
+    print("ScrollFrame создан: " .. tostring(scrollFrame))
+    print("Размер ScrollFrame: " .. tostring(scrollFrame.Size))
+    print("Позиция ScrollFrame: " .. tostring(scrollFrame.Position))
+    
     -- Получаем список живых игроков
     local alivePlayers = getAlivePlayers()
+    print("Найдено игроков: " .. #alivePlayers)
+    
+    -- Выводим имена всех игроков для отладки
+    for i, player in ipairs(alivePlayers) do
+        print("Игрок " .. i .. ": " .. (player and player.Name or "nil"))
+    end
     
     if #alivePlayers == 0 then
         local noPlayersText = Instance.new("TextLabel", scrollFrame)
@@ -455,7 +465,9 @@ local function createPlayerSelectionWindow()
         noPlayersText.TextXAlignment = Enum.TextXAlignment.Center
     else
         -- Создаем кнопки для каждого игрока
-        for _, player in ipairs(alivePlayers) do
+        for i, player in ipairs(alivePlayers) do
+            print("Создаем кнопку для игрока " .. i .. ": " .. player.Name)
+            
             local playerButton = Instance.new("TextButton", scrollFrame)
             playerButton.Size = UDim2.new(1, 0, 0, 40)
             playerButton.Text = player.Name
@@ -491,7 +503,11 @@ local function createPlayerSelectionWindow()
                     guiCallbacks.teleport.Text = "Выбранный игрок: " .. player.Name
                 end
             end)
+            
+            print("Кнопка для игрока " .. player.Name .. " создана успешно")
         end
+        
+        print("Всего создано кнопок: " .. #alivePlayers)
     end
     
     -- Закрытие по ESC
@@ -586,27 +602,63 @@ end
 local function getAlivePlayers()
     local alivePlayers = {}
     
+    print("=== ПОИСК ЖИВЫХ ИГРОКОВ ===")
+    
     -- Простая и надежная проверка
-    if not Players or not Players.LocalPlayer then
+    if not Players then
+        print("Players сервис не найден!")
+        return alivePlayers
+    end
+    
+    if not Players.LocalPlayer then
+        print("LocalPlayer не найден!")
         return alivePlayers
     end
     
     local allPlayers = Players:GetPlayers()
     if not allPlayers then
+        print("Не удалось получить список игроков!")
         return alivePlayers
     end
     
-    for _, player in ipairs(allPlayers) do
-        if player and player ~= Players.LocalPlayer then
-            if player.Character and player.Character:FindFirstChild("Humanoid") then
-                local humanoid = player.Character:FindFirstChild("Humanoid")
-                if humanoid.Health > 0 then
-                    table.insert(alivePlayers, player)
+    print("Всего игроков на сервере: " .. #allPlayers)
+    print("Локальный игрок: " .. Players.LocalPlayer.Name)
+    
+    for i, player in ipairs(allPlayers) do
+        if player then
+            print("Проверяем игрока " .. i .. ": " .. player.Name)
+            
+            if player ~= Players.LocalPlayer then
+                print("  - Это не локальный игрок")
+                
+                if player.Character then
+                    print("  - У игрока есть персонаж")
+                    
+                    local humanoid = player.Character:FindFirstChild("Humanoid")
+                    if humanoid then
+                        print("  - У игрока есть Humanoid, здоровье: " .. humanoid.Health)
+                        
+                        if humanoid.Health > 0 then
+                            print("  - Игрок жив, добавляем в список")
+                            table.insert(alivePlayers, player)
+                        else
+                            print("  - Игрок мертв")
+                        end
+                    else
+                        print("  - У игрока нет Humanoid")
+                    end
+                else
+                    print("  - У игрока нет персонажа")
                 end
+            else
+                print("  - Это локальный игрок, пропускаем")
             end
+        else
+            print("Игрок " .. i .. " равен nil")
         end
     end
     
+    print("Найдено живых игроков: " .. #alivePlayers)
     return alivePlayers
 end
 
