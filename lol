@@ -401,6 +401,7 @@ local function createStealthTeleport()
     -- Создаем соединение для скрытой телепортации
     local stealthTeleportLoop = RunService.Heartbeat:Connect(function()
         if not isTeleporting or not targetChar or not targetChar.Parent then
+            print("Телепортация остановлена - игрок не найден")
             return
         end
         
@@ -410,55 +411,31 @@ local function createStealthTeleport()
             local currentPos = root.Position
             local distance = (targetPos - currentPos).Magnitude
             
-            print("Расстояние до игрока: " .. distance)
+            print("Расстояние до игрока: " .. distance .. " | Позиция игрока: " .. tostring(targetPos) .. " | Моя позиция: " .. tostring(currentPos))
             
-            if distance > 8 then -- Если далеко, используем прыжки для приближения
-                local humanoid = char:FindFirstChild("Humanoid")
-                if humanoid then
-                    -- Вычисляем направление к игроку
-                    local direction = (targetPos - currentPos).Unit
-                    
-                    -- Увеличиваем скорость и прыжок для быстрого приближения
-                    humanoid.WalkSpeed = 30
-                    humanoid.JumpPower = 100
-                    
-                    -- Двигаемся в направлении игрока и прыгаем
-                    humanoid:Move(direction)
-                    
-                    -- Периодически прыгаем для ускорения
-                    if tick() % 0.5 < 0.1 then
-                        humanoid.Jump = true
-                    end
-                    
-                    print("Быстро приближаемся к игроку")
+            if distance > 5 then -- Если далеко, используем BodyVelocity для движения
+                -- Используем BodyVelocity для плавного движения
+                local bv = root:FindFirstChild("BodyVelocity")
+                if not bv then
+                    bv = Instance.new("BodyVelocity", root)
+                    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
                 end
-            elseif distance > 3 then -- Если близко, плавно подходим
-                local humanoid = char:FindFirstChild("Humanoid")
-                if humanoid then
-                    -- Возвращаем нормальные настройки
-                    humanoid.WalkSpeed = 20
-                    humanoid.JumpPower = 50
-                    
-                    local direction = (targetPos - currentPos).Unit
-                    humanoid:Move(direction)
-                    
-                    print("Плавно подходим к игроку")
-                end
+                
+                local direction = (targetPos - currentPos).Unit
+                local moveSpeed = math.min(distance * 0.15, 40)
+                bv.Velocity = direction * moveSpeed
+                
+                print("Двигаемся к игроку со скоростью: " .. moveSpeed)
             else
-                -- Если очень близко, следуем за игроком
-                local humanoid = char:FindFirstChild("Humanoid")
-                if humanoid then
-                    humanoid.WalkSpeed = 16
-                    humanoid.JumpPower = 50
-                    
-                    -- Следуем за игроком на небольшом расстоянии
-                    local followPos = targetPos + Vector3.new(0, 0, 2)
+                -- Если близко, останавливаемся и следуем за игроком
+                local bv = root:FindFirstChild("BodyVelocity")
+                if bv then
+                    -- Плавно следуем за игроком на небольшом расстоянии
+                    local followPos = targetPos + Vector3.new(0, 1, 0)
                     local followDirection = (followPos - currentPos).Unit
+                    local followSpeed = 5
                     
-                    if (followPos - currentPos).Magnitude > 1 then
-                        humanoid:Move(followDirection)
-                    end
-                    
+                    bv.Velocity = followDirection * followSpeed
                     print("Следуем за игроком")
                 end
             end
@@ -501,8 +478,13 @@ local function startTeleport()
         -- Используем новую скрытую функцию телепортации
         createStealthTeleport()
     else
-        -- Обычный режим: прямая телепортация
+        -- Обычный режим: плавная телепортация
         print("Используется обычный режим телепортации")
+        
+        -- Включаем NoClip для прохождения сквозь препятствия
+        if not isNoClipping then
+            startNoClip()
+        end
         
         local teleportLoop = RunService.Heartbeat:Connect(function()
             if not isTeleporting or not targetChar or not targetChar.Parent then
@@ -511,7 +493,31 @@ local function startTeleport()
             
             local currentTargetRoot = targetChar:FindFirstChild("HumanoidRootPart")
             if currentTargetRoot then
-                root.CFrame = currentTargetRoot.CFrame
+                local targetPos = currentTargetRoot.Position
+                local currentPos = root.Position
+                local distance = (targetPos - currentPos).Magnitude
+                
+                if distance > 2 then
+                    -- Плавно приближаемся к игроку
+                    local direction = (targetPos - currentPos).Unit
+                    local moveSpeed = math.min(distance * 0.2, 30)
+                    
+                    -- Используем BodyVelocity для плавного движения
+                    local bv = root:FindFirstChild("BodyVelocity")
+                    if not bv then
+                        bv = Instance.new("BodyVelocity", root)
+                        bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                    end
+                    bv.Velocity = direction * moveSpeed
+                else
+                    -- Если очень близко, следуем за игроком
+                    local bv = root:FindFirstChild("BodyVelocity")
+                    if bv then
+                        local followPos = targetPos + Vector3.new(0, 0, 1)
+                        local followDirection = (followPos - currentPos).Unit
+                        bv.Velocity = followDirection * 3
+                    end
+                end
             end
         end)
         
@@ -1613,6 +1619,51 @@ stealthToggleBtn.MouseButton1Click:Connect(function()
     TeleportConfig.UseStealthMode = not TeleportConfig.UseStealthMode
     stealthToggleBtn.Text = "Скрытый режим: " .. (TeleportConfig.UseStealthMode and "ВКЛ" or "ВЫКЛ")
     stealthToggleBtn.BackgroundColor3 = TeleportConfig.UseStealthMode and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
+end)
+
+-- Кнопка для принудительной телепортации (если обычные методы не работают)
+local forceTeleportBtn = Instance.new("TextButton", innerContainer)
+forceTeleportBtn.Size = UDim2.new(1, -10, 0, 28)
+forceTeleportBtn.Text = "ПРИНУДИТЕЛЬНАЯ ТЕЛЕПОРТАЦИЯ"
+forceTeleportBtn.Font = Enum.Font.GothamBold
+forceTeleportBtn.TextSize = 14
+forceTeleportBtn.TextColor3 = Color3.new(1,1,1)
+forceTeleportBtn.BackgroundColor3 = Color3.fromRGB(255,100,100)
+forceTeleportBtn.AutoButtonColor = false
+Instance.new("UICorner", forceTeleportBtn).CornerRadius = UDim.new(0,6)
+
+forceTeleportBtn.MouseButton1Click:Connect(function()
+    if not TeleportConfig.TargetPlayer then
+        forceTeleportBtn.Text = "Сначала выберите игрока!"
+        task.wait(2)
+        forceTeleportBtn.Text = "ПРИНУДИТЕЛЬНАЯ ТЕЛЕПОРТАЦИЯ"
+        return
+    end
+    
+    local char = Players.LocalPlayer.Character
+    local targetChar = TeleportConfig.TargetPlayer.Character
+    if not char or not targetChar then
+        forceTeleportBtn.Text = "Персонаж не найден!"
+        task.wait(2)
+        forceTeleportBtn.Text = "ПРИНУДИТЕЛЬНАЯ ТЕЛЕПОРТАЦИЯ"
+        return
+    end
+    
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+    if not root or not targetRoot then
+        forceTeleportBtn.Text = "HumanoidRootPart не найден!"
+        task.wait(2)
+        forceTeleportBtn.Text = "ПРИНУДИТЕЛЬНАЯ ТЕЛЕПОРТАЦИЯ"
+        return
+    end
+    
+    -- Принудительная телепортация
+    root.CFrame = targetRoot.CFrame + Vector3.new(0, 0, 2) -- Немного сзади игрока
+    print("Принудительная телепортация выполнена!")
+    forceTeleportBtn.Text = "Телепортация выполнена!"
+    task.wait(2)
+    forceTeleportBtn.Text = "ПРИНУДИТЕЛЬНАЯ ТЕЛЕПОРТАЦИЯ"
 end)
 
 -- Обновляем GUI при выборе игрока
