@@ -413,7 +413,7 @@ local function createStealthTeleport()
             
             print("Расстояние до игрока: " .. distance .. " | Позиция игрока: " .. tostring(targetPos) .. " | Моя позиция: " .. tostring(currentPos))
             
-            -- Постоянная принудительная телепортация с постоянной скоростью
+            -- Сверхбыстрая телепортация к игроку
             local bv = root:FindFirstChild("BodyVelocity")
             if not bv then
                 bv = Instance.new("BodyVelocity", root)
@@ -421,10 +421,10 @@ local function createStealthTeleport()
             end
             
             local direction = (targetPos - currentPos).Unit
-            local moveSpeed = 100 -- Постоянная высокая скорость
+            local moveSpeed = 500 -- Сверхвысокая скорость для почти моментального движения
             bv.Velocity = direction * moveSpeed
             
-            print("Принудительная телепортация к игроку со скоростью: " .. moveSpeed)
+            print("Сверхбыстрая телепортация к игроку со скоростью: " .. moveSpeed)
         end
     end)
     
@@ -483,11 +483,11 @@ local function startTeleport()
                 local currentPos = root.Position
                 local distance = (targetPos - currentPos).Magnitude
                 
-                -- Постоянная принудительная телепортация с постоянной скоростью
+                -- Сверхбыстрая телепортация к игроку
                 local direction = (targetPos - currentPos).Unit
-                local moveSpeed = 100 -- Постоянная высокая скорость
+                local moveSpeed = 500 -- Сверхвысокая скорость для почти моментального движения
                 
-                -- Используем BodyVelocity для быстрого движения
+                -- Используем BodyVelocity для сверхбыстрого движения
                 local bv = root:FindFirstChild("BodyVelocity")
                 if not bv then
                     bv = Instance.new("BodyVelocity", root)
@@ -544,10 +544,10 @@ local function stopTeleport()
                 end
                 
                 local returnDirection = (returnPos - currentPos).Unit
-                local returnSpeed = 100
+                local returnSpeed = 500 -- Сверхвысокая скорость для быстрого возврата
                 returnBv.Velocity = returnDirection * returnSpeed
                 
-                print("Двигаемся к исходной позиции со скоростью: " .. returnSpeed)
+                print("Сверхбыстрое движение к исходной позиции со скоростью: " .. returnSpeed)
             else
                 -- Достигли исходной позиции (в пределах 10 единиц)
                 local returnBv = root:FindFirstChild("BodyVelocity")
@@ -1746,10 +1746,10 @@ returnToStartBtn.MouseButton1Click:Connect(function()
             end
             
             local returnDirection = (returnPos - currentPos).Unit
-            local returnSpeed = 100
+            local returnSpeed = 500 -- Сверхвысокая скорость для быстрого возврата
             returnBv.Velocity = returnDirection * returnSpeed
             
-            print("Двигаемся к исходной позиции: " .. distance .. " единиц осталось")
+            print("Сверхбыстрое движение к исходной позиции: " .. distance .. " единиц осталось")
         else
             -- Достигли исходной позиции (в пределах 10 единиц)
             local returnBv = root:FindFirstChild("BodyVelocity")
