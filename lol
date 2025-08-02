@@ -520,28 +520,56 @@ local function stopTeleport()
     end
     
     if root and TeleportConfig.OriginalPosition then
-        -- Быстрый возврат на исходную позицию
+        -- Быстрый возврат на исходную позицию с постоянным движением
         print("Быстрый возврат на исходную позицию: " .. tostring(TeleportConfig.OriginalPosition))
         
-        -- Используем BodyVelocity для быстрого возврата
-        local returnBv = Instance.new("BodyVelocity", root)
-        returnBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+        -- Создаем постоянное движение к исходной позиции
+        local returnLoop = RunService.Heartbeat:Connect(function()
+            if not root or not root.Parent then
+                return
+            end
+            
+            local currentPos = root.Position
+            local returnPos = TeleportConfig.OriginalPosition
+            local distance = (returnPos - currentPos).Magnitude
+            
+            print("Расстояние до исходной позиции: " .. distance)
+            
+            if distance > 10 then
+                -- Продолжаем движение к исходной позиции
+                local returnBv = root:FindFirstChild("BodyVelocity")
+                if not returnBv then
+                    returnBv = Instance.new("BodyVelocity", root)
+                    returnBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                end
+                
+                local returnDirection = (returnPos - currentPos).Unit
+                local returnSpeed = 100
+                returnBv.Velocity = returnDirection * returnSpeed
+                
+                print("Двигаемся к исходной позиции со скоростью: " .. returnSpeed)
+            else
+                -- Достигли исходной позиции (в пределах 10 единиц)
+                local returnBv = root:FindFirstChild("BodyVelocity")
+                if returnBv then
+                    returnBv:Destroy()
+                end
+                
+                -- Финальная телепортация на точную позицию
+                root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
+                TeleportConfig.OriginalPosition = nil
+                
+                -- Отключаем цикл возврата
+                if returnLoop then
+                    returnLoop:Disconnect()
+                end
+                
+                print("Возврат на исходную позицию завершен")
+            end
+        end)
         
-        local currentPos = root.Position
-        local returnPos = TeleportConfig.OriginalPosition
-        local returnDirection = (returnPos - currentPos).Unit
-        local returnSpeed = 100 -- Такая же скорость как при телепортации
-        
-        returnBv.Velocity = returnDirection * returnSpeed
-        
-        -- Ждем немного и затем удаляем BodyVelocity
-        task.wait(0.5)
-        returnBv:Destroy()
-        
-        -- Финальная телепортация на точную позицию
-        root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
-        TeleportConfig.OriginalPosition = nil
-        print("Быстрый возврат на исходную позицию завершен")
+        -- Добавляем соединение в список для очистки
+        table.insert(teleportConnections, returnLoop)
     end
     
     -- Отключаем все соединения
@@ -1695,28 +1723,55 @@ returnToStartBtn.MouseButton1Click:Connect(function()
         return
     end
     
-    -- Быстрый возврат на исходную позицию с BodyVelocity
-    local returnBv = Instance.new("BodyVelocity", root)
-    returnBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    -- Быстрый возврат на исходную позицию с постоянным движением
+    print("Начинаем возврат на исходную позицию...")
+    returnToStartBtn.Text = "Возвращаемся..."
     
-    local currentPos = root.Position
-    local returnPos = TeleportConfig.OriginalPosition
-    local returnDirection = (returnPos - currentPos).Unit
-    local returnSpeed = 100
-    
-    returnBv.Velocity = returnDirection * returnSpeed
-    
-    -- Ждем немного и затем удаляем BodyVelocity
-    task.wait(0.5)
-    returnBv:Destroy()
-    
-    -- Финальная телепортация на точную позицию
-    root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
-    TeleportConfig.OriginalPosition = nil
-    print("Быстрый возврат на исходную позицию выполнен!")
-    returnToStartBtn.Text = "Возврат выполнен!"
-    task.wait(2)
-    returnToStartBtn.Text = "ВЕРНУТЬСЯ НА ИСХОДНУЮ ПОЗИЦИЮ"
+    -- Создаем постоянное движение к исходной позиции
+    local returnLoop = RunService.Heartbeat:Connect(function()
+        if not root or not root.Parent then
+            return
+        end
+        
+        local currentPos = root.Position
+        local returnPos = TeleportConfig.OriginalPosition
+        local distance = (returnPos - currentPos).Magnitude
+        
+        if distance > 10 then
+            -- Продолжаем движение к исходной позиции
+            local returnBv = root:FindFirstChild("BodyVelocity")
+            if not returnBv then
+                returnBv = Instance.new("BodyVelocity", root)
+                returnBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+            end
+            
+            local returnDirection = (returnPos - currentPos).Unit
+            local returnSpeed = 100
+            returnBv.Velocity = returnDirection * returnSpeed
+            
+            print("Двигаемся к исходной позиции: " .. distance .. " единиц осталось")
+        else
+            -- Достигли исходной позиции (в пределах 10 единиц)
+            local returnBv = root:FindFirstChild("BodyVelocity")
+            if returnBv then
+                returnBv:Destroy()
+            end
+            
+            -- Финальная телепортация на точную позицию
+            root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
+            TeleportConfig.OriginalPosition = nil
+            
+            -- Отключаем цикл возврата
+            if returnLoop then
+                returnLoop:Disconnect()
+            end
+            
+            print("Быстрый возврат на исходную позицию выполнен!")
+            returnToStartBtn.Text = "Возврат выполнен!"
+            task.wait(2)
+            returnToStartBtn.Text = "ВЕРНУТЬСЯ НА ИСХОДНУЮ ПОЗИЦИЮ"
+        end
+    end)
 end)
 
 -- Обновляем GUI при выборе игрока
