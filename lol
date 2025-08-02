@@ -460,6 +460,22 @@ local function startTeleport()
         print("Сохранена позиция: " .. tostring(TeleportConfig.OriginalPosition))
     end
     
+    -- Включаем NoClip для телепортации
+    if not isNoClipping then
+        startNoClip()
+        print("NoClip включен для телепортации к игроку")
+    end
+    
+    -- Обновляем GUI - кнопка "СТАРТ ТЕЛЕПОРТ" становится красной
+    if startTeleportBtn then
+        startTeleportBtn.Text = "ТЕЛЕПОРТАЦИЯ АКТИВНА"
+        startTeleportBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+    end
+    if stopTeleportBtn then
+        stopTeleportBtn.Text = "ОСТАНОВИТЬ ТЕЛЕПОРТАЦИЮ"
+        stopTeleportBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
+    end
+    
     if TeleportConfig.UseStealthMode then
         -- Используем новую скрытую функцию телепортации
         createStealthTeleport()
@@ -624,6 +640,16 @@ local function stopTeleport()
     -- Останавливаем NoClip если он был включен для телепортации
     if isNoClipping and TeleportConfig.UseStealthMode then
         stopNoClip()
+    end
+    
+    -- Обновляем GUI - кнопка "СТАРТ ТЕЛЕПОРТ" становится зеленой
+    if startTeleportBtn then
+        startTeleportBtn.Text = "СТАРТ ТЕЛЕПОРТ"
+        startTeleportBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
+    end
+    if stopTeleportBtn then
+        stopTeleportBtn.Text = "ВЫКЛЮЧИТЬ ТЕЛЕПОРТАЦИЮ"
+        stopTeleportBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
     end
 end
 
@@ -1784,6 +1810,7 @@ returnToStartBtn.MouseButton1Click:Connect(function()
     if isTeleporting then
         print("Останавливаем телепортацию к игроку перед возвратом")
         isTeleporting = false
+        TeleportConfig.Enabled = false
         
         -- Отключаем все соединения телепортации
         for _, connection in ipairs(teleportConnections) do
@@ -1799,6 +1826,16 @@ returnToStartBtn.MouseButton1Click:Connect(function()
         local bv = root:FindFirstChild("BodyVelocity")
         if bv then
             bv:Destroy()
+        end
+        
+        -- Обновляем GUI - кнопка "СТАРТ ТЕЛЕПОРТ" становится зеленой
+        if startTeleportBtn then
+            startTeleportBtn.Text = "СТАРТ ТЕЛЕПОРТ"
+            startTeleportBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
+        end
+        if stopTeleportBtn then
+            stopTeleportBtn.Text = "ВЫКЛЮЧИТЬ ТЕЛЕПОРТАЦИЮ"
+            stopTeleportBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
         end
     end
     
