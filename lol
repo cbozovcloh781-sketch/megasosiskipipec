@@ -65,6 +65,8 @@ local TeleportConfig = {
     TargetPlayer = nil,
     OriginalPosition = nil,
     ToggleKey = nil,
+    SelectedPlayerName = nil, -- Сохраняем ник выбранного игрока
+    UseStealthMode = true, -- Использовать скрытый режим телепортации
 }
 
 -- Переменные для полета
@@ -478,21 +480,24 @@ local function createPlayerSelectionWindow()
             local playerButton = Instance.new("TextButton", scrollFrame)
             playerButton.Size = UDim2.new(1, 0, 0, 40)
             playerButton.Text = player.Name
-            playerButton.Font = Enum.Font.Gotham
-            playerButton.TextSize = 14
+            playerButton.Font = Enum.Font.GothamBold
+            playerButton.TextSize = 16
             playerButton.TextColor3 = Color3.new(1, 1, 1)
-            playerButton.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+            playerButton.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
             playerButton.AutoButtonColor = false
-            playerButton.BorderSizePixel = 0
+            playerButton.BorderSizePixel = 1
+            playerButton.BorderColor3 = Color3.fromRGB(100, 100, 120)
             Instance.new("UICorner", playerButton).CornerRadius = UDim.new(0, 6)
             
             -- Эффекты при наведении
             playerButton.MouseEnter:Connect(function()
-                playerButton.BackgroundColor3 = Color3.fromRGB(70, 70, 75)
+                playerButton.BackgroundColor3 = Color3.fromRGB(80, 80, 90)
+                playerButton.BorderColor3 = Color3.fromRGB(150, 150, 170)
             end)
             
             playerButton.MouseLeave:Connect(function()
-                playerButton.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+                playerButton.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+                playerButton.BorderColor3 = Color3.fromRGB(100, 100, 120)
             end)
             
             -- Обработка выбора игрока
@@ -515,24 +520,6 @@ local function createPlayerSelectionWindow()
         end
         
         print("Всего создано кнопок: " .. #alivePlayers)
-        
-        -- Добавляем тестовую кнопку для проверки
-        local testButton = Instance.new("TextButton", scrollFrame)
-        testButton.Size = UDim2.new(1, 0, 0, 40)
-        testButton.Text = "ТЕСТОВАЯ КНОПКА - ОКНО РАБОТАЕТ"
-        testButton.Font = Enum.Font.GothamBold
-        testButton.TextSize = 14
-        testButton.TextColor3 = Color3.new(1, 1, 1)
-        testButton.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-        testButton.AutoButtonColor = false
-        testButton.BorderSizePixel = 0
-        Instance.new("UICorner", testButton).CornerRadius = UDim.new(0, 6)
-        
-        testButton.MouseButton1Click:Connect(function()
-            print("Тестовая кнопка нажата!")
-        end)
-        
-        print("Тестовая кнопка добавлена")
     end
     
     -- Закрытие по ESC
@@ -580,19 +567,67 @@ local function startTeleport()
         print("Сохранена позиция: " .. tostring(TeleportConfig.OriginalPosition))
     end
     
-    -- Создаем соединение для постоянной телепортации
-    local teleportLoop = RunService.Heartbeat:Connect(function()
-        if not isTeleporting or not targetChar or not targetChar.Parent then
-            return
+    if TeleportConfig.UseStealthMode then
+        -- Скрытый режим: используем полет для приближения к игроку
+        print("Используется скрытый режим телепортации")
+        
+        -- Включаем полет если он не включен
+        if not isFlying then
+            startFly()
         end
         
-        local currentTargetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-        if currentTargetRoot then
-            root.CFrame = currentTargetRoot.CFrame
-        end
-    end)
-    
-    table.insert(teleportConnections, teleportLoop)
+        -- Создаем соединение для скрытой телепортации
+        local stealthTeleportLoop = RunService.Heartbeat:Connect(function()
+            if not isTeleporting or not targetChar or not targetChar.Parent then
+                return
+            end
+            
+            local currentTargetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+            if currentTargetRoot then
+                -- Плавно приближаемся к игроку через полет
+                local targetPos = currentTargetRoot.Position
+                local currentPos = root.Position
+                local distance = (targetPos - currentPos).Magnitude
+                
+                if distance > 5 then -- Если далеко, приближаемся
+                    local direction = (targetPos - currentPos).Unit
+                    local moveSpeed = math.min(distance * 0.1, 50) -- Адаптивная скорость
+                    
+                    -- Используем BodyVelocity для плавного движения
+                    local bv = root:FindFirstChild("BodyVelocity")
+                    if not bv then
+                        bv = Instance.new("BodyVelocity", root)
+                        bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                    end
+                    bv.Velocity = direction * moveSpeed
+                else
+                    -- Если близко, останавливаемся
+                    local bv = root:FindFirstChild("BodyVelocity")
+                    if bv then
+                        bv.Velocity = Vector3.new(0, 0, 0)
+                    end
+                end
+            end
+        end)
+        
+        table.insert(teleportConnections, stealthTeleportLoop)
+    else
+        -- Обычный режим: прямая телепортация
+        print("Используется обычный режим телепортации")
+        
+        local teleportLoop = RunService.Heartbeat:Connect(function()
+            if not isTeleporting or not targetChar or not targetChar.Parent then
+                return
+            end
+            
+            local currentTargetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+            if currentTargetRoot then
+                root.CFrame = currentTargetRoot.CFrame
+            end
+        end)
+        
+        table.insert(teleportConnections, teleportLoop)
+    end
 end
 
 local function stopTeleport()
@@ -606,6 +641,13 @@ local function stopTeleport()
     end
     
     local root = char:FindFirstChild("HumanoidRootPart")
+    
+    -- Удаляем BodyVelocity если он есть
+    local bv = root and root:FindFirstChild("BodyVelocity")
+    if bv then
+        bv:Destroy()
+    end
+    
     if root and TeleportConfig.OriginalPosition then
         -- Возвращаемся на оригинальную позицию
         root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
@@ -622,6 +664,11 @@ local function stopTeleport()
         end
     end
     teleportConnections = {}
+    
+    -- Останавливаем полет если он был включен для телепортации
+    if isFlying and TeleportConfig.UseStealthMode then
+        stopFly()
+    end
 end
 
 local function getAlivePlayers()
@@ -1605,6 +1652,23 @@ stopTeleportBtn.MouseButton1Click:Connect(function()
         task.wait(2)
         stopTeleportBtn.Text = "ВЫКЛЮЧИТЬ ТЕЛЕПОРТАЦИЮ"
     end
+end)
+
+-- Переключатель режима телепортации
+local stealthToggleBtn = Instance.new("TextButton", innerContainer)
+stealthToggleBtn.Size = UDim2.new(1, -10, 0, 28)
+stealthToggleBtn.Text = "Скрытый режим: " .. (TeleportConfig.UseStealthMode and "ВКЛ" or "ВЫКЛ")
+stealthToggleBtn.Font = Enum.Font.Gotham
+stealthToggleBtn.TextSize = 14
+stealthToggleBtn.TextColor3 = Color3.new(1,1,1)
+stealthToggleBtn.BackgroundColor3 = TeleportConfig.UseStealthMode and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
+stealthToggleBtn.AutoButtonColor = false
+Instance.new("UICorner", stealthToggleBtn).CornerRadius = UDim.new(0,6)
+
+stealthToggleBtn.MouseButton1Click:Connect(function()
+    TeleportConfig.UseStealthMode = not TeleportConfig.UseStealthMode
+    stealthToggleBtn.Text = "Скрытый режим: " .. (TeleportConfig.UseStealthMode and "ВКЛ" or "ВЫКЛ")
+    stealthToggleBtn.BackgroundColor3 = TeleportConfig.UseStealthMode and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
 end)
 
 -- Обновляем GUI при выборе игрока
