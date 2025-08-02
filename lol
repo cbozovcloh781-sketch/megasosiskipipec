@@ -445,19 +445,26 @@ local function createPlayerSelectionWindow()
     print("Размер ScrollFrame: " .. tostring(scrollFrame.Size))
     print("Позиция ScrollFrame: " .. tostring(scrollFrame.Position))
     
-    -- Получаем список живых игроков
-    local alivePlayers = getAlivePlayers()
-    print("Найдено игроков: " .. #alivePlayers)
+    -- Получаем список всех игроков (включая мертвых для тестирования)
+    local allPlayers = Players:GetPlayers()
+    local alivePlayers = {}
     
-    -- Выводим имена всех игроков для отладки
-    for i, player in ipairs(alivePlayers) do
-        print("Игрок " .. i .. ": " .. (player and player.Name or "nil"))
+    print("Всего игроков на сервере: " .. #allPlayers)
+    
+    -- Создаем список всех игроков кроме локального
+    for _, player in ipairs(allPlayers) do
+        if player and player ~= Players.LocalPlayer then
+            table.insert(alivePlayers, player)
+            print("Добавлен игрок: " .. player.Name)
+        end
     end
+    
+    print("Найдено игроков для отображения: " .. #alivePlayers)
     
     if #alivePlayers == 0 then
         local noPlayersText = Instance.new("TextLabel", scrollFrame)
         noPlayersText.Size = UDim2.new(1, 0, 0, 40)
-        noPlayersText.Text = "Нет доступных игроков"
+        noPlayersText.Text = "Нет других игроков на сервере"
         noPlayersText.Font = Enum.Font.Gotham
         noPlayersText.TextSize = 14
         noPlayersText.TextColor3 = Color3.fromRGB(150, 150, 150)
@@ -508,6 +515,24 @@ local function createPlayerSelectionWindow()
         end
         
         print("Всего создано кнопок: " .. #alivePlayers)
+        
+        -- Добавляем тестовую кнопку для проверки
+        local testButton = Instance.new("TextButton", scrollFrame)
+        testButton.Size = UDim2.new(1, 0, 0, 40)
+        testButton.Text = "ТЕСТОВАЯ КНОПКА - ОКНО РАБОТАЕТ"
+        testButton.Font = Enum.Font.GothamBold
+        testButton.TextSize = 14
+        testButton.TextColor3 = Color3.new(1, 1, 1)
+        testButton.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+        testButton.AutoButtonColor = false
+        testButton.BorderSizePixel = 0
+        Instance.new("UICorner", testButton).CornerRadius = UDim.new(0, 6)
+        
+        testButton.MouseButton1Click:Connect(function()
+            print("Тестовая кнопка нажата!")
+        end)
+        
+        print("Тестовая кнопка добавлена")
     end
     
     -- Закрытие по ESC
@@ -1535,7 +1560,7 @@ Instance.new("UICorner", startTeleportBtn).CornerRadius = UDim.new(0,6)
 startTeleportBtn.MouseButton1Click:Connect(function()
     if not TeleportConfig.TargetPlayer then
         startTeleportBtn.Text = "Сначала выберите игрока!"
-        wait(2)
+        task.wait(2)
         startTeleportBtn.Text = "СТАРТ ТЕЛЕПОРТ"
         return
     end
@@ -1573,11 +1598,11 @@ stopTeleportBtn.MouseButton1Click:Connect(function()
         startTeleportBtn.Text = "СТАРТ ТЕЛЕПОРТ"
         startTeleportBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
         stopTeleportBtn.Text = "Телепортация остановлена"
-        wait(2)
+        task.wait(2)
         stopTeleportBtn.Text = "ВЫКЛЮЧИТЬ ТЕЛЕПОРТАЦИЮ"
     else
         stopTeleportBtn.Text = "Телепортация не активна"
-        wait(2)
+        task.wait(2)
         stopTeleportBtn.Text = "ВЫКЛЮЧИТЬ ТЕЛЕПОРТАЦИЮ"
     end
 end)
