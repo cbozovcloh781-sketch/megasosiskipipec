@@ -596,8 +596,11 @@ local function stopTeleport()
             root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
             TeleportConfig.OriginalPosition = nil
             
-            -- НЕ отключаем NoClip после возврата - оставляем его включенным для следующих телепортаций
-            print("NoClip остается включенным для следующих телепортаций")
+                            -- Отключаем NoClip после возврата на исходную координату
+                if isNoClipping then
+                    stopNoClip()
+                    print("NoClip отключен после возврата на исходную координату")
+                end
             
             -- Отключаем цикл возврата
             if returnLoop then
@@ -696,8 +699,11 @@ local function stopTeleport()
                 root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
                 TeleportConfig.OriginalPosition = nil
                 
-                -- НЕ отключаем NoClip после возврата - оставляем его включенным для следующих телепортаций
-                print("NoClip остается включенным для следующих телепортаций")
+                -- Отключаем NoClip после возврата на исходную координату
+                if isNoClipping then
+                    stopNoClip()
+                    print("NoClip отключен после возврата на исходную координату")
+                end
                 
                 -- Отключаем цикл возврата
                 if returnLoop then
