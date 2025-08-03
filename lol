@@ -387,9 +387,9 @@ local function createStealthTeleport()
     isTeleporting = true
     print("Скрытая телепортация к " .. TeleportConfig.TargetPlayer.Name .. " начата")
     
-    -- Сохраняем оригинальную позицию (всегда перезаписываем)
+    -- Сохраняем начальную координату при старте телепортации
     TeleportConfig.OriginalPosition = root.Position
-    print("Сохранена позиция: " .. tostring(TeleportConfig.OriginalPosition))
+    print("СОХРАНЕНА НАЧАЛЬНАЯ КООРДИНАТА: " .. tostring(TeleportConfig.OriginalPosition))
     
     -- Включаем NoClip для прохождения сквозь препятствия
     if not isNoClipping then
@@ -452,9 +452,9 @@ local function startTeleport()
     isTeleporting = true
     print("Телепортация к " .. TeleportConfig.TargetPlayer.Name .. " начата")
     
-    -- Сохраняем оригинальную позицию (всегда перезаписываем)
+    -- Сохраняем начальную координату при старте телепортации
     TeleportConfig.OriginalPosition = root.Position
-    print("Сохранена позиция: " .. tostring(TeleportConfig.OriginalPosition))
+    print("СОХРАНЕНА НАЧАЛЬНАЯ КООРДИНАТА: " .. tostring(TeleportConfig.OriginalPosition))
     
     -- Включаем NoClip для телепортации
     if not isNoClipping then
@@ -568,54 +568,44 @@ local function stopTeleport()
             
             print("Расстояние до исходной позиции: " .. distance .. " | Время: " .. elapsedTime)
             
-            if distance > 10 then
-                -- Продолжаем движение к исходной позиции
-                local returnBv = root:FindFirstChild("BodyVelocity")
-                if not returnBv then
-                    returnBv = Instance.new("BodyVelocity", root)
-                    returnBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                end
-                
-                local returnDirection = (returnPos - currentPos).Unit
-                local returnSpeed
-                
-                -- Первая фаза: быстрый полет (1 секунда)
-                if elapsedTime < 1 and not fastPhaseComplete then
-                    returnSpeed = 800 -- Очень высокая скорость для быстрого приближения
-                    print("Быстрая фаза: движение к исходной позиции со скоростью: " .. returnSpeed)
-                else
-                    -- Вторая фаза: плавное приближение к точной позиции
-                    fastPhaseComplete = true
-                    returnSpeed = math.min(distance * 2, 50) -- Адаптивная скорость для точного позиционирования
-                    print("Точная фаза: плавное движение к исходной позиции со скоростью: " .. returnSpeed)
-                end
-                
-                returnBv.Velocity = returnDirection * returnSpeed
-            else
-                -- Достигли исходной позиции (в пределах 10 единиц)
-                local returnBv = root:FindFirstChild("BodyVelocity")
-                if returnBv then
-                    -- Останавливаем движение и застываем в воздухе на 2 секунды
-                    returnBv.Velocity = Vector3.new(0, 0, 0)
-                    print("Застываем в воздухе на 2 секунды для сброса скорости...")
-                    task.wait(2) -- Ждем 2 секунды для полного сброса скорости
-                    returnBv:Destroy()
-                end
-                
-                -- Финальная телепортация на точную позицию
-                root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
-                TeleportConfig.OriginalPosition = nil
-                
-                -- НЕ отключаем NoClip после возврата - оставляем его включенным для следующих телепортаций
-                print("NoClip остается включенным для следующих телепортаций")
-                
-                -- Отключаем цикл возврата
-                if returnLoop then
-                    returnLoop:Disconnect()
-                end
-                
-                print("Возврат на исходную позицию завершен")
+                    if distance > 5 then
+            -- Продолжаем движение к начальной координате
+            local returnBv = root:FindFirstChild("BodyVelocity")
+            if not returnBv then
+                returnBv = Instance.new("BodyVelocity", root)
+                returnBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
             end
+            
+            local returnDirection = (returnPos - currentPos).Unit
+            local returnSpeed = 1000 -- Очень высокая скорость для быстрого возврата
+            
+            returnBv.Velocity = returnDirection * returnSpeed
+            print("Быстрое движение к начальной координате: " .. distance .. " единиц осталось")
+                else
+            -- Достигли начальной координаты (в пределах 5 единиц)
+            local returnBv = root:FindFirstChild("BodyVelocity")
+            if returnBv then
+                -- Останавливаем движение и застываем в воздухе на 2 секунды
+                returnBv.Velocity = Vector3.new(0, 0, 0)
+                print("ДОСТИГНУТА НАЧАЛЬНАЯ КООРДИНАТА! Застываем в воздухе на 2 секунды для сброса скорости...")
+                task.wait(2) -- Ждем 2 секунды для полного сброса скорости
+                returnBv:Destroy()
+            end
+            
+            -- Финальная телепортация на точную начальную координату
+            root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
+            TeleportConfig.OriginalPosition = nil
+            
+            -- НЕ отключаем NoClip после возврата - оставляем его включенным для следующих телепортаций
+            print("NoClip остается включенным для следующих телепортаций")
+            
+            -- Отключаем цикл возврата
+            if returnLoop then
+                returnLoop:Disconnect()
+            end
+            
+            print("ВОЗВРАТ НА НАЧАЛЬНУЮ КООРДИНАТУ ЗАВЕРШЕН!")
+        end
         end)
         
         -- Добавляем соединение в список для очистки
