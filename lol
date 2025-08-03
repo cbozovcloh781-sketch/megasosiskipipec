@@ -596,15 +596,17 @@ local function stopTeleport()
             root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
             TeleportConfig.OriginalPosition = nil
             
-            -- Принудительно отключаем NoClip после возврата на исходную координату
-            if isNoClipping then
-                stopNoClip()
-                print("NoClip отключен после возврата на исходную координату")
-            else
-                -- Дополнительная проверка и принудительное отключение
-                print("Принудительное отключение NoClip...")
-                stopNoClip()
-            end
+            -- Откладываем отключение NoClip на 10 секунд после возврата
+            print("NoClip будет отключен через 10 секунд...")
+            task.spawn(function()
+                task.wait(10)
+                if isNoClipping then
+                    stopNoClip()
+                    print("NoClip отключен через 10 секунд после возврата")
+                else
+                    print("NoClip уже отключен")
+                end
+            end)
             
             -- Отключаем цикл возврата
             if returnLoop then
@@ -636,11 +638,17 @@ local function stopTeleport()
         humanoid.JumpPower = 50
     end
     
-    -- Принудительно отключаем NoClip в конце функции stopTeleport
-    if isNoClipping then
-        stopNoClip()
-        print("NoClip принудительно отключен в конце stopTeleport")
-    end
+    -- Откладываем отключение NoClip на 10 секунд в конце функции stopTeleport
+    print("NoClip будет отключен через 10 секунд в конце stopTeleport...")
+    task.spawn(function()
+        task.wait(10)
+        if isNoClipping then
+            stopNoClip()
+            print("NoClip отключен через 10 секунд в конце stopTeleport")
+        else
+            print("NoClip уже отключен в конце stopTeleport")
+        end
+    end)
     
     -- Обновляем GUI - кнопка "СТАРТ ТЕЛЕПОРТ" становится зеленой
     if startTeleportBtn then
@@ -730,15 +738,17 @@ local function stopTeleport()
                 root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
                 TeleportConfig.OriginalPosition = nil
                 
-                -- Принудительно отключаем NoClip после возврата на исходную координату
-                if isNoClipping then
-                    stopNoClip()
-                    print("NoClip отключен после возврата на исходную координату")
-                else
-                    -- Дополнительная проверка и принудительное отключение
-                    print("Принудительное отключение NoClip...")
-                    stopNoClip()
-                end
+                -- Откладываем отключение NoClip на 10 секунд после возврата
+                print("NoClip будет отключен через 10 секунд...")
+                task.spawn(function()
+                    task.wait(10)
+                    if isNoClipping then
+                        stopNoClip()
+                        print("NoClip отключен через 10 секунд после возврата")
+                    else
+                        print("NoClip уже отключен")
+                    end
+                end)
                 
                 -- Отключаем цикл возврата
                 if returnLoop then
@@ -1176,7 +1186,7 @@ titleText.Name = "TitleText"
 titleText.Size = UDim2.new(1, -40, 1, 0)
 titleText.Position = UDim2.new(0, 10, 0, 0)
 titleText.BackgroundTransparency = 1
-titleText.Text = "SSLKIN ESP + AIMBOT + FLY"
+titleText.Text = "SSLKIN UNI-GUI"
 titleText.Font = Enum.Font.GothamBold
 titleText.TextSize = 14
 titleText.TextColor3 = Color3.new(1, 1, 1)
