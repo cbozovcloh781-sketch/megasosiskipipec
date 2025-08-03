@@ -1273,7 +1273,7 @@ UserInputService.InputBegan:Connect(function(inp, gp)
     end
 end)
 
--- GUI Setup 
+-- GUI Setup с системой вкладок
 local screenGui = Instance.new("ScreenGui", CoreGui)
 screenGui.Name = "SslkinGui"
 screenGui.ResetOnSpawn = false
@@ -1316,22 +1316,126 @@ collapseBtn.TextColor3 = Color3.new(1, 1, 1)
 collapseBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
 Instance.new("UICorner", collapseBtn).CornerRadius = UDim.new(0, 6)
 
+-- Создаем панель вкладок
+local tabPanel = Instance.new("Frame", frame)
+tabPanel.Name = "TabPanel"
+tabPanel.Size = UDim2.new(1, 0, 0, 40)
+tabPanel.Position = UDim2.new(0, 0, 0, 36)
+tabPanel.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+tabPanel.BorderSizePixel = 0
+
+-- Создаем контейнер для кнопок вкладок
+local tabButtonsContainer = Instance.new("Frame", tabPanel)
+tabButtonsContainer.Name = "TabButtonsContainer"
+tabButtonsContainer.Size = UDim2.new(1, -20, 1, 0)
+tabButtonsContainer.Position = UDim2.new(0, 10, 0, 0)
+tabButtonsContainer.BackgroundTransparency = 1
+
+-- Создаем layout для кнопок вкладок
+local tabLayout = Instance.new("UIListLayout", tabButtonsContainer)
+tabLayout.FillDirection = Enum.FillDirection.Horizontal
+tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+tabLayout.Padding = UDim.new(0, 5)
+
 local scroll = Instance.new("ScrollingFrame", frame)
-scroll.Position = UDim2.new(0, 0, 0, 30)
-scroll.Size = UDim2.new(1, 0, 1, -46)
+scroll.Position = UDim2.new(0, 0, 0, 76) -- Сдвигаем ниже панели вкладок
+scroll.Size = UDim2.new(1, 0, 1, -92) -- Уменьшаем высоту
 scroll.CanvasSize = UDim2.new(0, 0, 3, 0)
 scroll.ScrollBarThickness = 6
 scroll.BackgroundTransparency = 1
 scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 scroll.ClipsDescendants = true
 
-local innerContainer = Instance.new("Frame", scroll)
-innerContainer.Name = "InnerContainer"
-innerContainer.BackgroundTransparency = 1
-innerContainer.Size = UDim2.new(1, -20, 0, 0)
-innerContainer.Position = UDim2.new(0, 10, 0, 0)
-innerContainer.AutomaticSize = Enum.AutomaticSize.Y
-innerContainer.ClipsDescendants = false
+-- Убираем старый innerContainer, так как используем вкладки
+-- local innerContainer = Instance.new("Frame", scroll)
+-- innerContainer.Name = "InnerContainer"
+-- innerContainer.BackgroundTransparency = 1
+-- innerContainer.Size = UDim2.new(1, -20, 0, 0)
+-- innerContainer.Position = UDim2.new(0, 10, 0, 0)
+-- innerContainer.AutomaticSize = Enum.AutomaticSize.Y
+-- innerContainer.ClipsDescendants = false
+
+-- Система вкладок
+local tabs = {}
+local currentTab = nil
+local tabContainers = {}
+
+-- Функция создания вкладки
+local function createTab(name, icon)
+    local tabButton = Instance.new("TextButton", tabButtonsContainer)
+    tabButton.Size = UDim2.new(0, 70, 0, 30)
+    tabButton.Text = icon .. " " .. name
+    tabButton.Font = Enum.Font.GothamBold
+    tabButton.TextSize = 10
+    tabButton.TextColor3 = Color3.new(1, 1, 1)
+    tabButton.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    tabButton.AutoButtonColor = false
+    tabButton.BorderSizePixel = 0
+    Instance.new("UICorner", tabButton).CornerRadius = UDim.new(0, 4)
+    
+    -- Создаем контейнер для содержимого вкладки
+    local tabContainer = Instance.new("Frame", scroll)
+    tabContainer.Name = name .. "Container"
+    tabContainer.Size = UDim2.new(1, -20, 0, 0)
+    tabContainer.Position = UDim2.new(0, 10, 0, 0)
+    tabContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    tabContainer.BorderSizePixel = 0
+    tabContainer.AutomaticSize = Enum.AutomaticSize.Y
+    tabContainer.Visible = false
+    
+    -- Создаем layout для содержимого вкладки
+    local containerLayout = Instance.new("UIListLayout", tabContainer)
+    containerLayout.Padding = UDim.new(0, 8)
+    containerLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    
+    -- Добавляем отступы для содержимого
+    local padding = Instance.new("UIPadding", tabContainer)
+    padding.PaddingLeft = UDim.new(0, 10)
+    padding.PaddingRight = UDim.new(0, 10)
+    padding.PaddingTop = UDim.new(0, 10)
+    padding.PaddingBottom = UDim.new(0, 10)
+    
+    -- Сохраняем ссылки
+    tabs[name] = tabButton
+    tabContainers[name] = tabContainer
+    
+    -- Обработчик клика по вкладке
+    tabButton.MouseButton1Click:Connect(function()
+        switchTab(name)
+    end)
+    
+    return tabContainer
+end
+
+-- Функция переключения вкладок
+local function switchTab(tabName)
+    if currentTab == tabName then return end
+    
+    -- Скрываем все контейнеры вкладок
+    for _, container in pairs(tabContainers) do
+        if container then
+            container.Visible = false
+        end
+    end
+    
+    -- Сбрасываем цвет всех кнопок вкладок
+    for _, button in pairs(tabs) do
+        if button then
+            button.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+        end
+    end
+    
+    -- Показываем выбранную вкладку и выделяем кнопку
+    if tabContainers[tabName] then
+        tabContainers[tabName].Visible = true
+        if tabs[tabName] then
+            tabs[tabName].BackgroundColor3 = Color3.fromRGB(100, 150, 255)
+        end
+    end
+    
+    currentTab = tabName
+    print("Переключились на вкладку: " .. tabName)
+end
 
 local function toggleMenu()
     Config.MenuCollapsed = not Config.MenuCollapsed
@@ -1350,6 +1454,7 @@ local function toggleMenu()
 
     collapseBtn.Text = text
     scroll.Visible = not collapsed
+    tabPanel.Visible = not collapsed
 end
 
 collapseBtn.MouseButton1Click:Connect(toggleMenu)
@@ -1360,29 +1465,25 @@ UserInputService.InputBegan:Connect(function(input, gp)
     end
 end)
 
-local UIListLayout = Instance.new("UIListLayout", innerContainer)
-UIListLayout.Padding = UDim.new(0, 8)
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
--- Helper functions
-local function sectionHeader(text)
+-- Helper functions для работы с вкладками
+local function sectionHeader(container, text)
 	-- Добавляем отступ перед заголовком
-	local spacer = Instance.new("Frame", innerContainer)
+	local spacer = Instance.new("Frame", container)
 	spacer.Size = UDim2.new(1, 0, 0, 10)
 	spacer.BackgroundTransparency = 1
 	
-	local lbl = Instance.new("TextLabel", innerContainer)
+	local lbl = Instance.new("TextLabel", container)
 	lbl.Text = text
-	lbl.Size = UDim2.new(1, -10, 0, 30)
+	lbl.Size = UDim2.new(1, 0, 0, 30)
 	lbl.Font = Enum.Font.GothamBold
 	lbl.TextSize = 16
 	lbl.TextColor3 = Color3.fromRGB(255,255,255)
 	lbl.BackgroundTransparency = 1
 end
 
-local function toggle(label, default, callback)
-	local btn = Instance.new("TextButton", innerContainer)
-	btn.Size = UDim2.new(1, -10, 0, 28)
+local function toggle(container, label, default, callback)
+	local btn = Instance.new("TextButton", container)
+	btn.Size = UDim2.new(1, 0, 0, 28)
 	btn.Text = label .. ": " .. (default and "ON" or "OFF")
 	btn.Font = Enum.Font.Gotham
 	btn.TextSize = 14
@@ -1400,12 +1501,12 @@ local function toggle(label, default, callback)
 	return btn
 end
 
-local function slider(label, min, max, value, callback)
-	local container = Instance.new("Frame", innerContainer)
-	container.Size = UDim2.new(1, -10, 0, 36)
-	container.BackgroundTransparency = 1
+local function slider(container, label, min, max, value, callback)
+	local sliderContainer = Instance.new("Frame", container)
+	sliderContainer.Size = UDim2.new(1, 0, 0, 36)
+	sliderContainer.BackgroundTransparency = 1
 
-	local lbl = Instance.new("TextLabel", container)
+	local lbl = Instance.new("TextLabel", sliderContainer)
 	lbl.Text = label .. ": " .. value
 	lbl.Size = UDim2.new(1, 0, 0.5, 0)
 	lbl.Font = Enum.Font.Gotham
@@ -1413,7 +1514,7 @@ local function slider(label, min, max, value, callback)
 	lbl.TextColor3 = Color3.new(1,1,1)
 	lbl.BackgroundTransparency = 1
 
-	local sliderBack = Instance.new("Frame", container)
+	local sliderBack = Instance.new("Frame", sliderContainer)
 	sliderBack.Position = UDim2.new(0,0,0.5,4)
 	sliderBack.Size = UDim2.new(1, 0, 0, 6)
 	sliderBack.BackgroundColor3 = Color3.fromRGB(50,50,50)
@@ -1449,12 +1550,12 @@ local function slider(label, min, max, value, callback)
 	end)
 end
 
-local function colorPicker(labelText, currentColor, callback)
-    local lbl = Instance.new("TextLabel", innerContainer)
+local function colorPicker(container, labelText, currentColor, callback)
+    local lbl = Instance.new("TextLabel", container)
     lbl.Text = labelText
     lbl.TextColor3 = Color3.new(1,1,1)
     lbl.BackgroundTransparency = 1
-    lbl.Size = UDim2.new(1, -10, 0, 20)
+    lbl.Size = UDim2.new(1, 0, 0, 20)
     lbl.Font = Enum.Font.SourceSans
     lbl.TextSize = 14
 
@@ -1470,7 +1571,7 @@ local function colorPicker(labelText, currentColor, callback)
         Color3.fromRGB(255, 165, 0),
     }
 
-    local row = Instance.new("Frame", innerContainer)
+    local row = Instance.new("Frame", container)
     row.Size = UDim2.new(1, -10, 0, 28)
     row.BackgroundTransparency = 1
 
@@ -1491,12 +1592,12 @@ local function colorPicker(labelText, currentColor, callback)
     end
 end
 
-local function speedInput(label, currentSpeed, callback)
-    local container = Instance.new("Frame", innerContainer)
-    container.Size = UDim2.new(1, -10, 0, 36)
-    container.BackgroundTransparency = 1
+local function speedInput(container, label, currentSpeed, callback)
+    local inputContainer = Instance.new("Frame", container)
+    inputContainer.Size = UDim2.new(1, 0, 0, 36)
+    inputContainer.BackgroundTransparency = 1
 
-    local lbl = Instance.new("TextLabel", container)
+    local lbl = Instance.new("TextLabel", inputContainer)
     lbl.Text = label .. ": " .. currentSpeed
     lbl.Size = UDim2.new(0.7, 0, 0.5, 0)
     lbl.Font = Enum.Font.Gotham
@@ -1504,7 +1605,7 @@ local function speedInput(label, currentSpeed, callback)
     lbl.TextColor3 = Color3.new(1,1,1)
     lbl.BackgroundTransparency = 1
 
-    local inputBox = Instance.new("TextBox", container)
+    local inputBox = Instance.new("TextBox", inputContainer)
     inputBox.Position = UDim2.new(0.7, 5, 0.25, 0)
     inputBox.Size = UDim2.new(0.3, -5, 0.5, 0)
     inputBox.Text = tostring(currentSpeed)
@@ -1528,12 +1629,12 @@ local function speedInput(label, currentSpeed, callback)
     return lbl, inputBox
 end
 
-local function playerSelector(label, currentPlayer, callback)
-    local container = Instance.new("Frame", innerContainer)
-    container.Size = UDim2.new(1, -10, 0, 36)
-    container.BackgroundTransparency = 1
+local function playerSelector(container, label, currentPlayer, callback)
+    local selectorContainer = Instance.new("Frame", container)
+    selectorContainer.Size = UDim2.new(1, 0, 0, 36)
+    selectorContainer.BackgroundTransparency = 1
 
-    local lbl = Instance.new("TextLabel", container)
+    local lbl = Instance.new("TextLabel", selectorContainer)
     lbl.Text = label .. ": " .. (currentPlayer and currentPlayer.Name or "None")
     lbl.Size = UDim2.new(0.7, 0, 0.5, 0)
     lbl.Font = Enum.Font.Gotham
@@ -1541,7 +1642,7 @@ local function playerSelector(label, currentPlayer, callback)
     lbl.TextColor3 = Color3.new(1,1,1)
     lbl.BackgroundTransparency = 1
 
-    local selectBtn = Instance.new("TextButton", container)
+    local selectBtn = Instance.new("TextButton", selectorContainer)
     selectBtn.Position = UDim2.new(0.7, 5, 0.25, 0)
     selectBtn.Size = UDim2.new(0.3, -5, 0.5, 0)
     selectBtn.Text = "Выбрать игрока"
@@ -1568,9 +1669,9 @@ local function playerSelector(label, currentPlayer, callback)
 end
 
 -- 🔥 Горячие клавиши переключения ESP / Aimbot / Fly
-local function keyBindButton(name, currentKey, callback)
-    local btn = Instance.new("TextButton", innerContainer)
-    btn.Size = UDim2.new(1, -10, 0, 24)
+local function keyBindButton(container, name, currentKey, callback)
+    local btn = Instance.new("TextButton", container)
+    btn.Size = UDim2.new(1, 0, 0, 24)
     btn.Text = name .. " Hotkey: [" .. (currentKey and tostring(currentKey.Name) or "None") .. "]"
     btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
     btn.TextColor3 = Color3.new(1,1,1)
@@ -1592,67 +1693,15 @@ local function keyBindButton(name, currentKey, callback)
     end)
 end
 
--- Кнопки назначения горячих клавиш
-keyBindButton("ESP", Config.ESP.ToggleKey, function(newKey)
-    Config.ESP.ToggleKey = newKey
-end)
-
-keyBindButton("Aimbot", Config.Aimbot.ToggleKey, function(newKey)
-    Config.Aimbot.ToggleKey = newKey
-end)
-
-keyBindButton("Fly", FlyConfig.ToggleKey, function(newKey)
-    FlyConfig.ToggleKey = newKey
-end)
-
-keyBindButton("NoClip", NoClipConfig.ToggleKey, function(newKey)
-    NoClipConfig.ToggleKey = newKey
-end)
-
-keyBindButton("SpeedHack", SpeedHackConfig.ToggleKey, function(newKey)
-    SpeedHackConfig.ToggleKey = newKey
-end)
-
-keyBindButton("Teleport", TeleportConfig.ToggleKey, function(newKey)
-    TeleportConfig.ToggleKey = newKey
-end)
-
-
-
--- 🟦 ESP
-sectionHeader("🔷ESP Settings")
-toggle("ESP", Config.ESP.Enabled, function(v) Config.ESP.Enabled = v end)
-toggle("Team Check", Config.ESP.TeamCheck, function(v) Config.ESP.TeamCheck = v end)
-toggle("Show Outline", Config.ESP.ShowOutline, function(v) Config.ESP.ShowOutline = v end)
-toggle("Show Lines", Config.ESP.ShowLines, function(v) Config.ESP.ShowLines = v end)
-toggle("Rainbow Colors", Config.ESP.Rainbow, function(v) Config.ESP.Rainbow = v end)
-
-colorPicker("Fill Color", Config.ESP.FillColor, function(c) Config.ESP.FillColor = c end)
-colorPicker("Outline Color", Config.ESP.OutlineColor, function(c) Config.ESP.OutlineColor = c end)
-colorPicker("Text Color", Config.ESP.TextColor, function(c) Config.ESP.TextColor = c end)
-slider("Fill Transparency", 0, 1, Config.ESP.FillTransparency, function(v) Config.ESP.FillTransparency = v end)
-slider("Outline Transparency", 0, 1, Config.ESP.OutlineTransparency, function(v) Config.ESP.OutlineTransparency = v end)
-
--- Разделитель
-local divider1 = Instance.new("Frame", innerContainer)
-divider1.Size = UDim2.new(1, -10, 0, 2)
-divider1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-divider1.BorderSizePixel = 0
-
--- 🟥 Aimbot
-sectionHeader("🔷Aimbot Settings")
-toggle("Aimbot", Config.Aimbot.Enabled, function(v) Config.Aimbot.Enabled = v end)
-toggle("Team Check", Config.Aimbot.TeamCheck, function(v) Config.Aimbot.TeamCheck = v end)
-toggle("Visibility Check", Config.Aimbot.VisibilityCheck, function(v) Config.Aimbot.VisibilityCheck = v end)
-slider("FOV Radius", 10, 500, Config.Aimbot.FOV, function(v) Config.Aimbot.FOV = v end)
-toggle("FOV Rainbow", Config.Aimbot.FOVRainbow, function(v) Config.Aimbot.FOVRainbow = v end)
-colorPicker("Aimbot FOV Color", Config.Aimbot.FOVColor, function(c) Config.Aimbot.FOVColor = c end)
-
--- Разделитель
-local divider2 = Instance.new("Frame", innerContainer)
-divider2.Size = UDim2.new(1, -10, 0, 2)
-divider2.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-divider2.BorderSizePixel = 0
+-- Создаем вкладки
+local espTab = createTab("ESP", "🔷")
+local aimbotTab = createTab("Aimbot", "🔷")
+local flyTab = createTab("Fly", "🟨")
+local noclipTab = createTab("NoClip", "🟪")
+local speedTab = createTab("Speed", "🟦")
+local teleportTab = createTab("Teleport", "🟩")
+local playersTab = createTab("Players", "👥")
+local hotkeysTab = createTab("Hotkeys", "⌨️")
 
 -- Система обновления GUI
 local guiCallbacks = {}
@@ -1678,10 +1727,33 @@ RunService.Heartbeat:Connect(function()
     updateStatusDisplay()
 end)
 
--- 🟨 Fly System Integration
-sectionHeader("🟨 Fly Settings")
+-- 🔷 ESP Вкладка
+sectionHeader(espTab, "🔷 ESP Settings")
+toggle(espTab, "ESP", Config.ESP.Enabled, function(v) Config.ESP.Enabled = v end)
+toggle(espTab, "Team Check", Config.ESP.TeamCheck, function(v) Config.ESP.TeamCheck = v end)
+toggle(espTab, "Show Outline", Config.ESP.ShowOutline, function(v) Config.ESP.ShowOutline = v end)
+toggle(espTab, "Show Lines", Config.ESP.ShowLines, function(v) Config.ESP.ShowLines = v end)
+toggle(espTab, "Rainbow Colors", Config.ESP.Rainbow, function(v) Config.ESP.Rainbow = v end)
 
-local flyToggleBtn = toggle("Fly", FlyConfig.Enabled, function(v)
+colorPicker(espTab, "Fill Color", Config.ESP.FillColor, function(c) Config.ESP.FillColor = c end)
+colorPicker(espTab, "Outline Color", Config.ESP.OutlineColor, function(c) Config.ESP.OutlineColor = c end)
+colorPicker(espTab, "Text Color", Config.ESP.TextColor, function(c) Config.ESP.TextColor = c end)
+slider(espTab, "Fill Transparency", 0, 1, Config.ESP.FillTransparency, function(v) Config.ESP.FillTransparency = v end)
+slider(espTab, "Outline Transparency", 0, 1, Config.ESP.OutlineTransparency, function(v) Config.ESP.OutlineTransparency = v end)
+
+-- 🔷 Aimbot Вкладка
+sectionHeader(aimbotTab, "🔷 Aimbot Settings")
+toggle(aimbotTab, "Aimbot", Config.Aimbot.Enabled, function(v) Config.Aimbot.Enabled = v end)
+toggle(aimbotTab, "Team Check", Config.Aimbot.TeamCheck, function(v) Config.Aimbot.TeamCheck = v end)
+toggle(aimbotTab, "Visibility Check", Config.Aimbot.VisibilityCheck, function(v) Config.Aimbot.VisibilityCheck = v end)
+slider(aimbotTab, "FOV Radius", 10, 500, Config.Aimbot.FOV, function(v) Config.Aimbot.FOV = v end)
+toggle(aimbotTab, "FOV Rainbow", Config.Aimbot.FOVRainbow, function(v) Config.Aimbot.FOVRainbow = v end)
+colorPicker(aimbotTab, "Aimbot FOV Color", Config.Aimbot.FOVColor, function(c) Config.Aimbot.FOVColor = c end)
+
+-- 🟨 Fly Вкладка
+sectionHeader(flyTab, "🟨 Fly Settings")
+
+local flyToggleBtn = toggle(flyTab, "Fly", FlyConfig.Enabled, function(v)
     FlyConfig.Enabled = v
     if v then startFly() else stopFly() end
     -- Обновляем текст кнопки
@@ -1691,25 +1763,19 @@ local flyToggleBtn = toggle("Fly", FlyConfig.Enabled, function(v)
 end)
 guiCallbacks.fly = flyToggleBtn
 
-slider("Fly Speed", 0.1, 10, FlyConfig.Speed, function(v)
+slider(flyTab, "Fly Speed", 0.1, 10, FlyConfig.Speed, function(v)
     FlyConfig.Speed = v
 end)
 
 -- Кастомный ввод скорости для полета
-speedInput("Custom Fly Speed", FlyConfig.Speed, function(v)
+speedInput(flyTab, "Custom Fly Speed", FlyConfig.Speed, function(v)
     FlyConfig.Speed = v
 end)
 
--- Разделитель
-local divider3 = Instance.new("Frame", innerContainer)
-divider3.Size = UDim2.new(1, -10, 0, 2)
-divider3.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-divider3.BorderSizePixel = 0
+-- 🟪 NoClip Вкладка
+sectionHeader(noclipTab, "🟪 NoClip Settings")
 
--- 🟪 NoClip System Integration
-sectionHeader("🟪 NoClip Settings")
-
-local noClipToggleBtn = toggle("NoClip", NoClipConfig.Enabled, function(v)
+local noClipToggleBtn = toggle(noclipTab, "NoClip", NoClipConfig.Enabled, function(v)
     NoClipConfig.Enabled = v
     if v then startNoClip() else stopNoClip() end
     -- Обновляем текст кнопки
@@ -1719,16 +1785,10 @@ local noClipToggleBtn = toggle("NoClip", NoClipConfig.Enabled, function(v)
 end)
 guiCallbacks.noClip = noClipToggleBtn
 
--- Разделитель
-local divider4 = Instance.new("Frame", innerContainer)
-divider4.Size = UDim2.new(1, -10, 0, 2)
-divider4.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-divider4.BorderSizePixel = 0
+-- 🟦 SpeedHack Вкладка
+sectionHeader(speedTab, "🟦 SpeedHack Settings")
 
--- 🟦 SpeedHack System Integration
-sectionHeader("🟦 SpeedHack Settings")
-
-local speedHackToggleBtn = toggle("SpeedHack", SpeedHackConfig.Enabled, function(v)
+local speedHackToggleBtn = toggle(speedTab, "SpeedHack", SpeedHackConfig.Enabled, function(v)
     SpeedHackConfig.Enabled = v
     if v then startSpeedHack() else stopSpeedHack() end
     -- Обновляем текст кнопки
@@ -1738,7 +1798,7 @@ local speedHackToggleBtn = toggle("SpeedHack", SpeedHackConfig.Enabled, function
 end)
 guiCallbacks.speedHack = speedHackToggleBtn
 
-toggle("Use JumpPower Method", SpeedHackConfig.UseJumpPower, function(v)
+toggle(speedTab, "Use JumpPower Method", SpeedHackConfig.UseJumpPower, function(v)
     SpeedHackConfig.UseJumpPower = v
     -- Перезапускаем SpeedHack если он активен
     if SpeedHackConfig.Enabled then
@@ -1747,7 +1807,7 @@ toggle("Use JumpPower Method", SpeedHackConfig.UseJumpPower, function(v)
     end
 end)
 
-slider("SpeedHack Speed", 0.1, 10, SpeedHackConfig.Speed, function(v)
+slider(speedTab, "SpeedHack Speed", 0.1, 10, SpeedHackConfig.Speed, function(v)
     SpeedHackConfig.Speed = v
     -- Обновляем скорость если SpeedHack активен
     if SpeedHackConfig.Enabled then
@@ -1763,7 +1823,7 @@ slider("SpeedHack Speed", 0.1, 10, SpeedHackConfig.Speed, function(v)
 end)
 
 -- Кастомный ввод скорости для SpeedHack
-speedInput("Custom SpeedHack Speed", SpeedHackConfig.Speed, function(v)
+speedInput(speedTab, "Custom SpeedHack Speed", SpeedHackConfig.Speed, function(v)
     SpeedHackConfig.Speed = v
     -- Обновляем скорость если SpeedHack активен
     if SpeedHackConfig.Enabled then
@@ -1778,18 +1838,12 @@ speedInput("Custom SpeedHack Speed", SpeedHackConfig.Speed, function(v)
     end
 end)
 
--- Разделитель
-local divider5 = Instance.new("Frame", innerContainer)
-divider5.Size = UDim2.new(1, -10, 0, 2)
-divider5.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-divider5.BorderSizePixel = 0
-
--- 🟩 Teleport System Integration
-sectionHeader("🟩 Настройки телепортации")
+-- 🟩 Teleport Вкладка
+sectionHeader(teleportTab, "🟩 Настройки телепортации")
 
 -- Показываем выбранного игрока
-local selectedPlayerLabel = Instance.new("TextLabel", innerContainer)
-selectedPlayerLabel.Size = UDim2.new(1, -10, 0, 24)
+local selectedPlayerLabel = Instance.new("TextLabel", teleportTab)
+selectedPlayerLabel.Size = UDim2.new(1, 0, 0, 24)
 selectedPlayerLabel.Text = "Выбранный игрок: " .. (TeleportConfig.SelectedPlayerName or "Не выбран")
 selectedPlayerLabel.Font = Enum.Font.GothamBold
 selectedPlayerLabel.TextSize = 14
@@ -1798,8 +1852,8 @@ selectedPlayerLabel.BackgroundTransparency = 1
 selectedPlayerLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 -- Кнопка старт телепорт
-local startTeleportBtn = Instance.new("TextButton", innerContainer)
-startTeleportBtn.Size = UDim2.new(1, -10, 0, 28)
+local startTeleportBtn = Instance.new("TextButton", teleportTab)
+startTeleportBtn.Size = UDim2.new(1, 0, 0, 28)
 startTeleportBtn.Text = "СТАРТ ТЕЛЕПОРТ"
 startTeleportBtn.Font = Enum.Font.GothamBold
 startTeleportBtn.TextSize = 14
@@ -1832,8 +1886,8 @@ startTeleportBtn.MouseButton1Click:Connect(function()
 end)
 
 -- Кнопка выключить телепортацию
-local stopTeleportBtn = Instance.new("TextButton", innerContainer)
-stopTeleportBtn.Size = UDim2.new(1, -10, 0, 28)
+local stopTeleportBtn = Instance.new("TextButton", teleportTab)
+stopTeleportBtn.Size = UDim2.new(1, 0, 0, 28)
 stopTeleportBtn.Text = "ВЫКЛЮЧИТЬ ТЕЛЕПОРТАЦИЮ"
 stopTeleportBtn.Font = Enum.Font.GothamBold
 stopTeleportBtn.TextSize = 14
@@ -1857,6 +1911,48 @@ stopTeleportBtn.MouseButton1Click:Connect(function()
         stopTeleportBtn.Text = "ВЫКЛЮЧИТЬ ТЕЛЕПОРТАЦИЮ"
     end
 end)
+
+-- ⌨️ Hotkeys Вкладка
+sectionHeader(hotkeysTab, "⌨️ Горячие клавиши")
+
+-- Кнопки назначения горячих клавиш
+keyBindButton(hotkeysTab, "ESP", Config.ESP.ToggleKey, function(newKey)
+    Config.ESP.ToggleKey = newKey
+end)
+
+keyBindButton(hotkeysTab, "Aimbot", Config.Aimbot.ToggleKey, function(newKey)
+    Config.Aimbot.ToggleKey = newKey
+end)
+
+keyBindButton(hotkeysTab, "Fly", FlyConfig.ToggleKey, function(newKey)
+    FlyConfig.ToggleKey = newKey
+end)
+
+keyBindButton(hotkeysTab, "NoClip", NoClipConfig.ToggleKey, function(newKey)
+    NoClipConfig.ToggleKey = newKey
+end)
+
+keyBindButton(hotkeysTab, "SpeedHack", SpeedHackConfig.ToggleKey, function(newKey)
+    SpeedHackConfig.ToggleKey = newKey
+end)
+
+keyBindButton(hotkeysTab, "Teleport", TeleportConfig.ToggleKey, function(newKey)
+    TeleportConfig.ToggleKey = newKey
+end)
+
+-- 👥 Players Вкладка
+sectionHeader(playersTab, "👥 Список игроков")
+
+-- Кнопка для обновления списка игроков
+local updatePlayersBtn = Instance.new("TextButton", playersTab)
+updatePlayersBtn.Size = UDim2.new(1, 0, 0, 28)
+updatePlayersBtn.Text = "ОБНОВИТЬ СПИСОК ИГРОКОВ"
+updatePlayersBtn.Font = Enum.Font.GothamBold
+updatePlayersBtn.TextSize = 14
+updatePlayersBtn.TextColor3 = Color3.new(1,1,1)
+updatePlayersBtn.BackgroundColor3 = Color3.fromRGB(100,150,255)
+updatePlayersBtn.AutoButtonColor = false
+Instance.new("UICorner", updatePlayersBtn).CornerRadius = UDim.new(0,6)
 
 -- Создаем список игроков прямо в меню
 local function createPlayerListInMenu()
@@ -1886,21 +1982,21 @@ local function createPlayerListInMenu()
         if firstLetter ~= currentLetter then
             currentLetter = firstLetter
             
-            -- Создаем заголовок для буквы
-            local letterHeader = Instance.new("TextLabel", innerContainer)
-            letterHeader.Size = UDim2.new(1, -10, 0, 20)
-            letterHeader.Text = "--- " .. firstLetter .. " ---"
-            letterHeader.Font = Enum.Font.GothamBold
-            letterHeader.TextSize = 12
-            letterHeader.TextColor3 = Color3.fromRGB(255,255,0)
-            letterHeader.BackgroundColor3 = Color3.fromRGB(30,30,40)
-            letterHeader.BorderSizePixel = 0
-            letterHeader.TextXAlignment = Enum.TextXAlignment.Center
-            Instance.new("UICorner", letterHeader).CornerRadius = UDim.new(0,4)
-        end
-        
-        local playerBtn = Instance.new("TextButton", innerContainer)
-        playerBtn.Size = UDim2.new(1, -10, 0, 30)
+                    -- Создаем заголовок для буквы
+        local letterHeader = Instance.new("TextLabel", playersTab)
+        letterHeader.Size = UDim2.new(1, 0, 0, 20)
+        letterHeader.Text = "--- " .. firstLetter .. " ---"
+        letterHeader.Font = Enum.Font.GothamBold
+        letterHeader.TextSize = 12
+        letterHeader.TextColor3 = Color3.fromRGB(255,255,0)
+        letterHeader.BackgroundColor3 = Color3.fromRGB(30,30,40)
+        letterHeader.BorderSizePixel = 0
+        letterHeader.TextXAlignment = Enum.TextXAlignment.Center
+        Instance.new("UICorner", letterHeader).CornerRadius = UDim.new(0,4)
+    end
+    
+    local playerBtn = Instance.new("TextButton", playersTab)
+    playerBtn.Size = UDim2.new(1, 0, 0, 30)
         playerBtn.Text = player.Name
         playerBtn.Font = Enum.Font.Gotham
         playerBtn.TextSize = 12
@@ -1924,13 +2020,15 @@ local function createPlayerListInMenu()
         
         -- Обработка выбора игрока
         playerBtn.MouseButton1Click:Connect(function()
-                    -- Сбрасываем цвет всех кнопок игроков
-        for _, btn in ipairs(innerContainer:GetChildren()) do
-            if btn:IsA("TextButton") and btn ~= startTeleportBtn and btn ~= stopTeleportBtn and btn ~= updatePlayersBtn then
-                btn.BackgroundColor3 = Color3.fromRGB(50,50,60)
-                btn.BorderColor3 = Color3.fromRGB(100,100,120)
+            -- Сбрасываем цвет всех кнопок игроков (но не кнопок настроек)
+            for _, btn in ipairs(playersTab:GetChildren()) do
+                if btn:IsA("TextButton") and 
+                   btn ~= updatePlayersBtn and
+                   btn.Size.Y.Offset == 30 then -- Только кнопки игроков имеют высоту 30
+                    btn.BackgroundColor3 = Color3.fromRGB(50,50,60)
+                    btn.BorderColor3 = Color3.fromRGB(100,100,120)
+                end
             end
-        end
             
             -- Выделяем выбранную кнопку
             playerBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
@@ -1990,7 +2088,7 @@ local function updatePlayerList()
             
             -- Создаем заголовок для буквы
             local letterHeader = Instance.new("TextLabel", tempContainer)
-            letterHeader.Size = UDim2.new(1, -10, 0, 20)
+            letterHeader.Size = UDim2.new(1, 0, 0, 20)
             letterHeader.Text = "--- " .. firstLetter .. " ---"
             letterHeader.Font = Enum.Font.GothamBold
             letterHeader.TextSize = 12
@@ -2002,7 +2100,7 @@ local function updatePlayerList()
         end
         
         local playerBtn = Instance.new("TextButton", tempContainer)
-        playerBtn.Size = UDim2.new(1, -10, 0, 30)
+        playerBtn.Size = UDim2.new(1, 0, 0, 30)
         playerBtn.Text = player.Name
         playerBtn.Font = Enum.Font.Gotham
         playerBtn.TextSize = 12
@@ -2026,9 +2124,11 @@ local function updatePlayerList()
         
         -- Обработка выбора игрока
         playerBtn.MouseButton1Click:Connect(function()
-            -- Сбрасываем цвет всех кнопок игроков
-            for _, btn in ipairs(innerContainer:GetChildren()) do
-                if btn:IsA("TextButton") and btn ~= startTeleportBtn and btn ~= stopTeleportBtn and btn ~= updatePlayersBtn then
+            -- Сбрасываем цвет всех кнопок игроков (но не кнопок настроек)
+            for _, btn in ipairs(playersTab:GetChildren()) do
+                if btn:IsA("TextButton") and 
+                   btn ~= updatePlayersBtn and
+                   btn.Size.Y.Offset == 30 then -- Только кнопки игроков имеют высоту 30
                     btn.BackgroundColor3 = Color3.fromRGB(50,50,60)
                     btn.BorderColor3 = Color3.fromRGB(100,100,120)
                 end
@@ -2045,26 +2145,28 @@ local function updatePlayerList()
         end)
     end
     
-    -- Теперь безопасно удаляем старые кнопки игроков и заголовки
-    for _, child in ipairs(innerContainer:GetChildren()) do
-        if child:IsA("TextButton") and child ~= startTeleportBtn and child ~= stopTeleportBtn and child ~= updatePlayersBtn then
-            -- Проверяем, что это кнопка игрока
-            if child.Text and child.Text:len() > 0 and not child.Text:find("ОБНОВИТЬ") then
+    -- Теперь безопасно удаляем ТОЛЬКО старые кнопки игроков и заголовки из вкладки Players
+    for _, child in ipairs(playersTab:GetChildren()) do
+        if child:IsA("TextButton") then
+            -- Проверяем, что это кнопка игрока (не кнопка обновления)
+            if child.Text and child.Text:len() > 0 and 
+               not child.Text:find("ОБНОВИТЬ") and 
+               child.Size.Y.Offset == 30 then -- Кнопки игроков имеют высоту 30
                 child:Destroy()
             end
         end
     end
     
     -- Удаляем старые заголовки букв
-    for _, child in ipairs(innerContainer:GetChildren()) do
+    for _, child in ipairs(playersTab:GetChildren()) do
         if child:IsA("TextLabel") and child.Text and child.Text:find("---") then
             child:Destroy()
         end
     end
     
-    -- Перемещаем новые кнопки в основной контейнер
+    -- Перемещаем новые кнопки в вкладку Players
     for _, child in ipairs(tempContainer:GetChildren()) do
-        child.Parent = innerContainer
+        child.Parent = playersTab
     end
     
     -- Удаляем временный контейнер
@@ -2091,7 +2193,20 @@ updatePlayersBtn.MouseButton1Click:Connect(function()
     updatePlayersBtn.Text = "СПИСОК ОБНОВЛЕН!"
     task.wait(2)
     updatePlayersBtn.Text = "ОБНОВИТЬ СПИСОК ИГРОКОВ"
+    
+    -- Через 5 секунд восстанавливаем все кнопки настроек
+    task.spawn(function()
+        task.wait(5)
+        print("Восстанавливаем кнопки настроек через 5 секунд...")
+        -- Здесь можно добавить дополнительную логику восстановления если нужно
+    end)
 end)
+
+-- Создаем список игроков
+createPlayerListInMenu()
+
+-- Активируем первую вкладку по умолчанию
+switchTab("ESP")
 
 -- Автоматическое обновление списка игроков каждые 30 секунд
 task.spawn(function()
