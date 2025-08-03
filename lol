@@ -596,11 +596,15 @@ local function stopTeleport()
             root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
             TeleportConfig.OriginalPosition = nil
             
-                            -- Отключаем NoClip после возврата на исходную координату
-                if isNoClipping then
-                    stopNoClip()
-                    print("NoClip отключен после возврата на исходную координату")
-                end
+            -- Принудительно отключаем NoClip после возврата на исходную координату
+            if isNoClipping then
+                stopNoClip()
+                print("NoClip отключен после возврата на исходную координату")
+            else
+                -- Дополнительная проверка и принудительное отключение
+                print("Принудительное отключение NoClip...")
+                stopNoClip()
+            end
             
             -- Отключаем цикл возврата
             if returnLoop then
@@ -632,8 +636,11 @@ local function stopTeleport()
         humanoid.JumpPower = 50
     end
     
-    -- НЕ отключаем NoClip - оставляем его включенным для следующих телепортаций
-    print("NoClip остается включенным для следующих телепортаций")
+    -- Принудительно отключаем NoClip в конце функции stopTeleport
+    if isNoClipping then
+        stopNoClip()
+        print("NoClip принудительно отключен в конце stopTeleport")
+    end
     
     -- Обновляем GUI - кнопка "СТАРТ ТЕЛЕПОРТ" становится зеленой
     if startTeleportBtn then
@@ -723,10 +730,14 @@ local function stopTeleport()
                 root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
                 TeleportConfig.OriginalPosition = nil
                 
-                -- Отключаем NoClip после возврата на исходную координату
+                -- Принудительно отключаем NoClip после возврата на исходную координату
                 if isNoClipping then
                     stopNoClip()
                     print("NoClip отключен после возврата на исходную координату")
+                else
+                    -- Дополнительная проверка и принудительное отключение
+                    print("Принудительное отключение NoClip...")
+                    stopNoClip()
                 end
                 
                 -- Отключаем цикл возврата
