@@ -643,6 +643,76 @@ local function stopTeleport()
     end
     
     print("Телепортация к игроку остановлена, начинаем возврат на исходную позицию...")
+    
+    -- Автоматически начинаем возврат на начальную координату
+    if root and TeleportConfig.OriginalPosition then
+        print("НАЧИНАЕМ ВОЗВРАТ НА НАЧАЛЬНУЮ КООРДИНАТУ: " .. tostring(TeleportConfig.OriginalPosition))
+        
+        -- Включаем NoClip для возврата
+        if not isNoClipping then
+            startNoClip()
+            print("NoClip включен для возврата на начальную координату")
+        end
+        
+        -- Создаем движение к начальной координате
+        local returnStartTime = tick()
+        
+        local returnLoop = RunService.Heartbeat:Connect(function()
+            if not root or not root.Parent then
+                return
+            end
+            
+            local currentPos = root.Position
+            local returnPos = TeleportConfig.OriginalPosition
+            local distance = (returnPos - currentPos).Magnitude
+            
+            print("Расстояние до начальной координаты: " .. distance)
+            
+            if distance > 5 then
+                -- Продолжаем движение к начальной координате
+                local returnBv = root:FindFirstChild("BodyVelocity")
+                if not returnBv then
+                    returnBv = Instance.new("BodyVelocity", root)
+                    returnBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                end
+                
+                local returnDirection = (returnPos - currentPos).Unit
+                local returnSpeed = 1000 -- Очень высокая скорость для быстрого возврата
+                
+                returnBv.Velocity = returnDirection * returnSpeed
+                print("Быстрое движение к начальной координате: " .. distance .. " единиц осталось")
+            else
+                -- Достигли начальной координаты (в пределах 5 единиц)
+                local returnBv = root:FindFirstChild("BodyVelocity")
+                if returnBv then
+                    -- Останавливаем движение и застываем в воздухе на 2 секунды
+                    returnBv.Velocity = Vector3.new(0, 0, 0)
+                    print("ДОСТИГНУТА НАЧАЛЬНАЯ КООРДИНАТА! Застываем в воздухе на 2 секунды для сброса скорости...")
+                    task.wait(2) -- Ждем 2 секунды для полного сброса скорости
+                    returnBv:Destroy()
+                end
+                
+                -- Финальная телепортация на точную начальную координату
+                root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
+                TeleportConfig.OriginalPosition = nil
+                
+                -- НЕ отключаем NoClip после возврата - оставляем его включенным для следующих телепортаций
+                print("NoClip остается включенным для следующих телепортаций")
+                
+                -- Отключаем цикл возврата
+                if returnLoop then
+                    returnLoop:Disconnect()
+                end
+                
+                print("ВОЗВРАТ НА НАЧАЛЬНУЮ КООРДИНАТУ ЗАВЕРШЕН!")
+            end
+        end)
+        
+        -- Добавляем соединение в список для очистки
+        table.insert(teleportConnections, returnLoop)
+    else
+        print("ОШИБКА: Нет сохраненной начальной координаты или персонаж не найден!")
+    end
 end
 
 local function getAlivePlayers()
