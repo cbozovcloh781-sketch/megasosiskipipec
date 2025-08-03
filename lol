@@ -1924,13 +1924,17 @@ local function createPlayerListInMenu()
         
         -- Обработка выбора игрока
         playerBtn.MouseButton1Click:Connect(function()
-                    -- Сбрасываем цвет всех кнопок игроков
-        for _, btn in ipairs(innerContainer:GetChildren()) do
-            if btn:IsA("TextButton") and btn ~= startTeleportBtn and btn ~= stopTeleportBtn and btn ~= updatePlayersBtn then
-                btn.BackgroundColor3 = Color3.fromRGB(50,50,60)
-                btn.BorderColor3 = Color3.fromRGB(100,100,120)
+            -- Сбрасываем цвет всех кнопок игроков (но не кнопок настроек)
+            for _, btn in ipairs(innerContainer:GetChildren()) do
+                if btn:IsA("TextButton") and 
+                   btn ~= startTeleportBtn and 
+                   btn ~= stopTeleportBtn and 
+                   btn ~= updatePlayersBtn and
+                   btn.Size.Y.Offset == 30 then -- Только кнопки игроков имеют высоту 30
+                    btn.BackgroundColor3 = Color3.fromRGB(50,50,60)
+                    btn.BorderColor3 = Color3.fromRGB(100,100,120)
+                end
             end
-        end
             
             -- Выделяем выбранную кнопку
             playerBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
@@ -2026,9 +2030,13 @@ local function updatePlayerList()
         
         -- Обработка выбора игрока
         playerBtn.MouseButton1Click:Connect(function()
-            -- Сбрасываем цвет всех кнопок игроков
+            -- Сбрасываем цвет всех кнопок игроков (но не кнопок настроек)
             for _, btn in ipairs(innerContainer:GetChildren()) do
-                if btn:IsA("TextButton") and btn ~= startTeleportBtn and btn ~= stopTeleportBtn and btn ~= updatePlayersBtn then
+                if btn:IsA("TextButton") and 
+                   btn ~= startTeleportBtn and 
+                   btn ~= stopTeleportBtn and 
+                   btn ~= updatePlayersBtn and
+                   btn.Size.Y.Offset == 30 then -- Только кнопки игроков имеют высоту 30
                     btn.BackgroundColor3 = Color3.fromRGB(50,50,60)
                     btn.BorderColor3 = Color3.fromRGB(100,100,120)
                 end
@@ -2045,11 +2053,39 @@ local function updatePlayerList()
         end)
     end
     
-    -- Теперь безопасно удаляем старые кнопки игроков и заголовки
+    -- Теперь безопасно удаляем ТОЛЬКО старые кнопки игроков и заголовки
     for _, child in ipairs(innerContainer:GetChildren()) do
-        if child:IsA("TextButton") and child ~= startTeleportBtn and child ~= stopTeleportBtn and child ~= updatePlayersBtn then
-            -- Проверяем, что это кнопка игрока
-            if child.Text and child.Text:len() > 0 and not child.Text:find("ОБНОВИТЬ") then
+        if child:IsA("TextButton") then
+            -- Проверяем, что это кнопка игрока (не кнопка настроек)
+            if child.Text and child.Text:len() > 0 and 
+               not child.Text:find("ОБНОВИТЬ") and 
+               not child.Text:find("ESP") and 
+               not child.Text:find("Aimbot") and 
+               not child.Text:find("Fly") and 
+               not child.Text:find("NoClip") and 
+               not child.Text:find("SpeedHack") and 
+               not child.Text:find("Team Check") and 
+               not child.Text:find("Show Outline") and 
+               not child.Text:find("Show Lines") and 
+               not child.Text:find("Rainbow Colors") and 
+               not child.Text:find("Fill Color") and 
+               not child.Text:find("Outline Color") and 
+               not child.Text:find("Text Color") and 
+               not child.Text:find("Fill Transparency") and 
+               not child.Text:find("Outline Transparency") and 
+               not child.Text:find("Visibility Check") and 
+               not child.Text:find("FOV Radius") and 
+               not child.Text:find("FOV Rainbow") and 
+               not child.Text:find("Aimbot FOV Color") and 
+               not child.Text:find("Fly Speed") and 
+               not child.Text:find("Custom Fly Speed") and 
+               not child.Text:find("Use JumpPower Method") and 
+               not child.Text:find("SpeedHack Speed") and 
+               not child.Text:find("Custom SpeedHack Speed") and 
+               not child.Text:find("СТАРТ ТЕЛЕПОРТ") and 
+               not child.Text:find("ВЫКЛЮЧИТЬ ТЕЛЕПОРТАЦИЮ") and 
+               not child.Text:find("Hotkey:") and 
+               child.Size.Y.Offset == 30 then -- Кнопки игроков имеют высоту 30
                 child:Destroy()
             end
         end
@@ -2091,6 +2127,13 @@ updatePlayersBtn.MouseButton1Click:Connect(function()
     updatePlayersBtn.Text = "СПИСОК ОБНОВЛЕН!"
     task.wait(2)
     updatePlayersBtn.Text = "ОБНОВИТЬ СПИСОК ИГРОКОВ"
+    
+    -- Через 5 секунд восстанавливаем все кнопки настроек
+    task.spawn(function()
+        task.wait(5)
+        print("Восстанавливаем кнопки настроек через 5 секунд...")
+        -- Здесь можно добавить дополнительную логику восстановления если нужно
+    end)
 end)
 
 -- Автоматическое обновление списка игроков каждые 30 секунд
