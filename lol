@@ -1958,7 +1958,94 @@ guiCallbacks.teleport = selectedPlayerLabel
 local function updatePlayerList()
     print("ОБНОВЛЕНИЕ СПИСКА ИГРОКОВ...")
     
-    -- Удаляем старые кнопки игроков
+    -- Создаем временный контейнер для нового списка
+    local tempContainer = Instance.new("Frame")
+    tempContainer.Name = "TempPlayerList"
+    tempContainer.Parent = nil -- Не добавляем в GUI пока
+    
+    -- Получаем актуальный список игроков
+    local allPlayers = Players:GetPlayers()
+    local alivePlayers = {}
+    for _, player in ipairs(allPlayers) do
+        if player and player ~= Players.LocalPlayer then
+            table.insert(alivePlayers, player)
+        end
+    end
+    
+    -- Сортируем игроков по алфавиту
+    table.sort(alivePlayers, function(a, b)
+        return a.Name:lower() < b.Name:lower()
+    end)
+    
+    print("Создаем новый список игроков: " .. #alivePlayers .. " игроков")
+    
+    -- Создаем кнопки для каждого игрока во временном контейнере
+    local currentLetter = ""
+    for i, player in ipairs(alivePlayers) do
+        local firstLetter = player.Name:sub(1,1):upper()
+        
+        -- Добавляем разделитель для новой буквы
+        if firstLetter ~= currentLetter then
+            currentLetter = firstLetter
+            
+            -- Создаем заголовок для буквы
+            local letterHeader = Instance.new("TextLabel", tempContainer)
+            letterHeader.Size = UDim2.new(1, -10, 0, 20)
+            letterHeader.Text = "--- " .. firstLetter .. " ---"
+            letterHeader.Font = Enum.Font.GothamBold
+            letterHeader.TextSize = 12
+            letterHeader.TextColor3 = Color3.fromRGB(255,255,0)
+            letterHeader.BackgroundColor3 = Color3.fromRGB(30,30,40)
+            letterHeader.BorderSizePixel = 0
+            letterHeader.TextXAlignment = Enum.TextXAlignment.Center
+            Instance.new("UICorner", letterHeader).CornerRadius = UDim.new(0,4)
+        end
+        
+        local playerBtn = Instance.new("TextButton", tempContainer)
+        playerBtn.Size = UDim2.new(1, -10, 0, 30)
+        playerBtn.Text = player.Name
+        playerBtn.Font = Enum.Font.Gotham
+        playerBtn.TextSize = 12
+        playerBtn.TextColor3 = Color3.new(1,1,1)
+        playerBtn.BackgroundColor3 = Color3.fromRGB(50,50,60)
+        playerBtn.AutoButtonColor = false
+        playerBtn.BorderSizePixel = 1
+        playerBtn.BorderColor3 = Color3.fromRGB(100,100,120)
+        Instance.new("UICorner", playerBtn).CornerRadius = UDim.new(0,4)
+        
+        -- Эффекты при наведении
+        playerBtn.MouseEnter:Connect(function()
+            playerBtn.BackgroundColor3 = Color3.fromRGB(70,70,80)
+            playerBtn.BorderColor3 = Color3.fromRGB(150,150,170)
+        end)
+        
+        playerBtn.MouseLeave:Connect(function()
+            playerBtn.BackgroundColor3 = Color3.fromRGB(50,50,60)
+            playerBtn.BorderColor3 = Color3.fromRGB(100,100,120)
+        end)
+        
+        -- Обработка выбора игрока
+        playerBtn.MouseButton1Click:Connect(function()
+            -- Сбрасываем цвет всех кнопок игроков
+            for _, btn in ipairs(innerContainer:GetChildren()) do
+                if btn:IsA("TextButton") and btn ~= startTeleportBtn and btn ~= stopTeleportBtn and btn ~= updatePlayersBtn then
+                    btn.BackgroundColor3 = Color3.fromRGB(50,50,60)
+                    btn.BorderColor3 = Color3.fromRGB(100,100,120)
+                end
+            end
+            
+            -- Выделяем выбранную кнопку
+            playerBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
+            playerBtn.BorderColor3 = Color3.fromRGB(0,200,0)
+            
+            TeleportConfig.TargetPlayer = player
+            TeleportConfig.SelectedPlayerName = player.Name
+            selectedPlayerLabel.Text = "Выбранный игрок: " .. player.Name
+            print("Выбран игрок: " .. player.Name)
+        end)
+    end
+    
+    -- Теперь безопасно удаляем старые кнопки игроков и заголовки
     for _, child in ipairs(innerContainer:GetChildren()) do
         if child:IsA("TextButton") and child ~= startTeleportBtn and child ~= stopTeleportBtn and child ~= updatePlayersBtn then
             -- Проверяем, что это кнопка игрока
@@ -1975,10 +2062,15 @@ local function updatePlayerList()
         end
     end
     
-    -- Создаем новый список игроков
-    createPlayerListInMenu()
+    -- Перемещаем новые кнопки в основной контейнер
+    for _, child in ipairs(tempContainer:GetChildren()) do
+        child.Parent = innerContainer
+    end
     
-    print("СПИСОК ИГРОКОВ ОБНОВЛЕН! Найдено игроков: " .. #getAlivePlayers())
+    -- Удаляем временный контейнер
+    tempContainer:Destroy()
+    
+    print("СПИСОК ИГРОКОВ ОБНОВЛЕН! Найдено игроков: " .. #alivePlayers)
 end
 
 -- Кнопка для обновления списка игроков
