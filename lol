@@ -614,6 +614,56 @@ local function stopTeleport()
             end
             
             print("ВОЗВРАТ НА НАЧАЛЬНУЮ КООРДИНАТУ ЗАВЕРШЕН!")
+            
+            -- Дополнительная проверка: если не в радиусе 10 studs, продолжаем перемещение
+            if TeleportConfig.OriginalPosition then
+                print("ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: Запускаем постоянное перемещение к исходной точке...")
+                
+                local finalCheckLoop = RunService.Heartbeat:Connect(function()
+                    if not root or not root.Parent then
+                        return
+                    end
+                    
+                    local currentPos = root.Position
+                    local targetPos = TeleportConfig.OriginalPosition
+                    local distance = (targetPos - currentPos).Magnitude
+                    
+                    if distance > 10 then
+                        -- Продолжаем перемещение к исходной точке
+                        local finalBv = root:FindFirstChild("BodyVelocity")
+                        if not finalBv then
+                            finalBv = Instance.new("BodyVelocity", root)
+                            finalBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                        end
+                        
+                        local direction = (targetPos - currentPos).Unit
+                        local speed = 800
+                        finalBv.Velocity = direction * speed
+                        
+                        print("ДОПОЛНИТЕЛЬНОЕ ПЕРЕМЕЩЕНИЕ: " .. distance .. " studs до исходной точки")
+                    else
+                        -- Достигли радиуса 10 studs, останавливаемся
+                        local finalBv = root:FindFirstChild("BodyVelocity")
+                        if finalBv then
+                            finalBv:Destroy()
+                        end
+                        
+                        -- Финальная телепортация на точную позицию
+                        root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
+                        TeleportConfig.OriginalPosition = nil
+                        
+                        -- Отключаем дополнительную проверку
+                        if finalCheckLoop then
+                            finalCheckLoop:Disconnect()
+                        end
+                        
+                        print("ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА ЗАВЕРШЕНА: Достигнута исходная точка!")
+                    end
+                end)
+                
+                -- Добавляем соединение в список для очистки
+                table.insert(teleportConnections, finalCheckLoop)
+            end
         end
         end)
         
@@ -693,6 +743,56 @@ local function stopTeleport()
                     returnLoop:Disconnect()
                 end
                 print("ПРИНУДИТЕЛЬНЫЙ ВОЗВРАТ НА НАЧАЛЬНУЮ КООРДИНАТУ ЗАВЕРШЕН!")
+                
+                -- Дополнительная проверка для принудительного возврата
+                if TeleportConfig.OriginalPosition then
+                    print("ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА ПРИНУДИТЕЛЬНОГО ВОЗВРАТА: Запускаем постоянное перемещение...")
+                    
+                    local finalCheckLoop = RunService.Heartbeat:Connect(function()
+                        if not root or not root.Parent then
+                            return
+                        end
+                        
+                        local currentPos = root.Position
+                        local targetPos = TeleportConfig.OriginalPosition
+                        local distance = (targetPos - currentPos).Magnitude
+                        
+                        if distance > 10 then
+                            -- Продолжаем перемещение к исходной точке
+                            local finalBv = root:FindFirstChild("BodyVelocity")
+                            if not finalBv then
+                                finalBv = Instance.new("BodyVelocity", root)
+                                finalBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                            end
+                            
+                            local direction = (targetPos - currentPos).Unit
+                            local speed = 800
+                            finalBv.Velocity = direction * speed
+                            
+                            print("ДОПОЛНИТЕЛЬНОЕ ПЕРЕМЕЩЕНИЕ (ПРИНУДИТЕЛЬНОЕ): " .. distance .. " studs до исходной точки")
+                        else
+                            -- Достигли радиуса 10 studs, останавливаемся
+                            local finalBv = root:FindFirstChild("BodyVelocity")
+                            if finalBv then
+                                finalBv:Destroy()
+                            end
+                            
+                            -- Финальная телепортация на точную позицию
+                            root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
+                            TeleportConfig.OriginalPosition = nil
+                            
+                            -- Отключаем дополнительную проверку
+                            if finalCheckLoop then
+                                finalCheckLoop:Disconnect()
+                            end
+                            
+                            print("ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА ПРИНУДИТЕЛЬНОГО ВОЗВРАТА ЗАВЕРШЕНА!")
+                        end
+                    end)
+                    
+                    -- Добавляем соединение в список для очистки
+                    table.insert(teleportConnections, finalCheckLoop)
+                end
                 return
             end
             
@@ -756,6 +856,56 @@ local function stopTeleport()
                 end
                 
                 print("ВОЗВРАТ НА НАЧАЛЬНУЮ КООРДИНАТУ ЗАВЕРШЕН!")
+                
+                -- Дополнительная проверка: если не в радиусе 10 studs, продолжаем перемещение
+                if TeleportConfig.OriginalPosition then
+                    print("ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: Запускаем постоянное перемещение к исходной точке...")
+                    
+                    local finalCheckLoop = RunService.Heartbeat:Connect(function()
+                        if not root or not root.Parent then
+                            return
+                        end
+                        
+                        local currentPos = root.Position
+                        local targetPos = TeleportConfig.OriginalPosition
+                        local distance = (targetPos - currentPos).Magnitude
+                        
+                        if distance > 10 then
+                            -- Продолжаем перемещение к исходной точке
+                            local finalBv = root:FindFirstChild("BodyVelocity")
+                            if not finalBv then
+                                finalBv = Instance.new("BodyVelocity", root)
+                                finalBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                            end
+                            
+                            local direction = (targetPos - currentPos).Unit
+                            local speed = 800
+                            finalBv.Velocity = direction * speed
+                            
+                            print("ДОПОЛНИТЕЛЬНОЕ ПЕРЕМЕЩЕНИЕ: " .. distance .. " studs до исходной точки")
+                        else
+                            -- Достигли радиуса 10 studs, останавливаемся
+                            local finalBv = root:FindFirstChild("BodyVelocity")
+                            if finalBv then
+                                finalBv:Destroy()
+                            end
+                            
+                            -- Финальная телепортация на точную позицию
+                            root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
+                            TeleportConfig.OriginalPosition = nil
+                            
+                            -- Отключаем дополнительную проверку
+                            if finalCheckLoop then
+                                finalCheckLoop:Disconnect()
+                            end
+                            
+                            print("ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА ЗАВЕРШЕНА: Достигнута исходная точка!")
+                        end
+                    end)
+                    
+                    -- Добавляем соединение в список для очистки
+                    table.insert(teleportConnections, finalCheckLoop)
+                end
             end
         end)
         
