@@ -659,9 +659,33 @@ local function stopTeleport()
         
         -- Создаем движение к начальной координате
         local returnStartTime = tick()
+        local returnAttempts = 0
+        local maxAttempts = 300 -- Максимум 5 секунд (300 кадров при 60 FPS)
         
         local returnLoop = RunService.Heartbeat:Connect(function()
+            returnAttempts = returnAttempts + 1
+            
+            -- Проверяем, не застряли ли мы
+            if returnAttempts > maxAttempts then
+                print("ПРЕДУПРЕЖДЕНИЕ: Возврат занимает слишком много времени, принудительная телепортация...")
+                root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
+                TeleportConfig.OriginalPosition = nil
+                if isNoClipping then
+                    stopNoClip()
+                    print("NoClip отключен после принудительного возврата")
+                end
+                if returnLoop then
+                    returnLoop:Disconnect()
+                end
+                print("ПРИНУДИТЕЛЬНЫЙ ВОЗВРАТ НА НАЧАЛЬНУЮ КООРДИНАТУ ЗАВЕРШЕН!")
+                return
+            end
+            
             if not root or not root.Parent then
+                print("ОШИБКА: Персонаж не найден во время возврата")
+                if returnLoop then
+                    returnLoop:Disconnect()
+                end
                 return
             end
             
@@ -669,9 +693,9 @@ local function stopTeleport()
             local returnPos = TeleportConfig.OriginalPosition
             local distance = (returnPos - currentPos).Magnitude
             
-            print("Расстояние до начальной координаты: " .. distance)
+            print("Расстояние до начальной координаты: " .. distance .. " | Попытка: " .. returnAttempts)
             
-            if distance > 5 then
+            if distance > 3 then
                 -- Продолжаем движение к начальной координате
                 local returnBv = root:FindFirstChild("BodyVelocity")
                 if not returnBv then
@@ -680,12 +704,12 @@ local function stopTeleport()
                 end
                 
                 local returnDirection = (returnPos - currentPos).Unit
-                local returnSpeed = 1000 -- Очень высокая скорость для быстрого возврата
+                local returnSpeed = 1500 -- Увеличиваем скорость для более быстрого возврата
                 
                 returnBv.Velocity = returnDirection * returnSpeed
                 print("Быстрое движение к начальной координате: " .. distance .. " единиц осталось")
             else
-                -- Достигли начальной координаты (в пределах 5 единиц)
+                -- Достигли начальной координаты (в пределах 3 единиц)
                 local returnBv = root:FindFirstChild("BodyVelocity")
                 if returnBv then
                     -- Останавливаем движение и застываем в воздухе на 2 секунды
@@ -718,6 +742,18 @@ local function stopTeleport()
         table.insert(teleportConnections, returnLoop)
     else
         print("ОШИБКА: Нет сохраненной начальной координаты или персонаж не найден!")
+        print("Попытка принудительного возврата...")
+        
+        -- Принудительный возврат если что-то пошло не так
+        if root and TeleportConfig.OriginalPosition then
+            root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
+            TeleportConfig.OriginalPosition = nil
+            if isNoClipping then
+                stopNoClip()
+                print("NoClip отключен после принудительного возврата")
+            end
+            print("ПРИНУДИТЕЛЬНЫЙ ВОЗВРАТ ВЫПОЛНЕН!")
+        end
     end
 end
 
