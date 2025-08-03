@@ -472,45 +472,8 @@ local function startTeleport()
         stopTeleportBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
     end
     
-    if TeleportConfig.UseStealthMode then
-        -- Используем новую скрытую функцию телепортации
-        createStealthTeleport()
-    else
-        -- Обычный режим: плавная телепортация
-        print("Используется обычный режим телепортации")
-        
-        -- Включаем NoClip для прохождения сквозь препятствия
-        if not isNoClipping then
-            startNoClip()
-        end
-        
-        local teleportLoop = RunService.Heartbeat:Connect(function()
-            if not isTeleporting or not targetChar or not targetChar.Parent then
-                return
-            end
-            
-            local currentTargetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-            if currentTargetRoot then
-                local targetPos = currentTargetRoot.Position
-                local currentPos = root.Position
-                local distance = (targetPos - currentPos).Magnitude
-                
-                -- Сверхбыстрая телепортация к игроку
-                local direction = (targetPos - currentPos).Unit
-                local moveSpeed = 500 -- Сверхвысокая скорость для почти моментального движения
-                
-                -- Используем BodyVelocity для сверхбыстрого движения
-                local bv = root:FindFirstChild("BodyVelocity")
-                if not bv then
-                    bv = Instance.new("BodyVelocity", root)
-                    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                end
-                bv.Velocity = direction * moveSpeed
-            end
-        end)
-        
-        table.insert(teleportConnections, teleportLoop)
-    end
+    -- Всегда используем скрытную функцию телепортации
+    createStealthTeleport()
 end
 
 local function stopTeleport()
@@ -1961,13 +1924,13 @@ local function createPlayerListInMenu()
         
         -- Обработка выбора игрока
         playerBtn.MouseButton1Click:Connect(function()
-            -- Сбрасываем цвет всех кнопок игроков
-            for _, btn in ipairs(innerContainer:GetChildren()) do
-                if btn:IsA("TextButton") and btn ~= stealthToggleBtn and btn ~= startTeleportBtn and btn ~= stopTeleportBtn and btn ~= forceTeleportBtn then
-                    btn.BackgroundColor3 = Color3.fromRGB(50,50,60)
-                    btn.BorderColor3 = Color3.fromRGB(100,100,120)
-                end
+                    -- Сбрасываем цвет всех кнопок игроков
+        for _, btn in ipairs(innerContainer:GetChildren()) do
+            if btn:IsA("TextButton") and btn ~= startTeleportBtn and btn ~= stopTeleportBtn and btn ~= updatePlayersBtn then
+                btn.BackgroundColor3 = Color3.fromRGB(50,50,60)
+                btn.BorderColor3 = Color3.fromRGB(100,100,120)
             end
+        end
             
             -- Выделяем выбранную кнопку
             playerBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
@@ -1984,67 +1947,7 @@ end
 -- Создаем список игроков
 createPlayerListInMenu()
 
--- Переключатель режима телепортации
-local stealthToggleBtn = Instance.new("TextButton", innerContainer)
-stealthToggleBtn.Size = UDim2.new(1, -10, 0, 28)
-stealthToggleBtn.Text = "Скрытый режим: " .. (TeleportConfig.UseStealthMode and "ВКЛ" or "ВЫКЛ")
-stealthToggleBtn.Font = Enum.Font.Gotham
-stealthToggleBtn.TextSize = 14
-stealthToggleBtn.TextColor3 = Color3.new(1,1,1)
-stealthToggleBtn.BackgroundColor3 = TeleportConfig.UseStealthMode and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
-stealthToggleBtn.AutoButtonColor = false
-Instance.new("UICorner", stealthToggleBtn).CornerRadius = UDim.new(0,6)
-
-stealthToggleBtn.MouseButton1Click:Connect(function()
-    TeleportConfig.UseStealthMode = not TeleportConfig.UseStealthMode
-    stealthToggleBtn.Text = "Скрытый режим: " .. (TeleportConfig.UseStealthMode and "ВКЛ" or "ВЫКЛ")
-    stealthToggleBtn.BackgroundColor3 = TeleportConfig.UseStealthMode and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
-end)
-
--- Кнопка для принудительной телепортации (если обычные методы не работают)
-local forceTeleportBtn = Instance.new("TextButton", innerContainer)
-forceTeleportBtn.Size = UDim2.new(1, -10, 0, 28)
-forceTeleportBtn.Text = "ПРИНУДИТЕЛЬНАЯ ТЕЛЕПОРТАЦИЯ"
-forceTeleportBtn.Font = Enum.Font.GothamBold
-forceTeleportBtn.TextSize = 14
-forceTeleportBtn.TextColor3 = Color3.new(1,1,1)
-forceTeleportBtn.BackgroundColor3 = Color3.fromRGB(255,100,100)
-forceTeleportBtn.AutoButtonColor = false
-Instance.new("UICorner", forceTeleportBtn).CornerRadius = UDim.new(0,6)
-
-forceTeleportBtn.MouseButton1Click:Connect(function()
-    if not TeleportConfig.TargetPlayer then
-        forceTeleportBtn.Text = "Сначала выберите игрока!"
-        task.wait(2)
-        forceTeleportBtn.Text = "ПРИНУДИТЕЛЬНАЯ ТЕЛЕПОРТАЦИЯ"
-        return
-    end
-    
-    local char = Players.LocalPlayer.Character
-    local targetChar = TeleportConfig.TargetPlayer.Character
-    if not char or not targetChar then
-        forceTeleportBtn.Text = "Персонаж не найден!"
-        task.wait(2)
-        forceTeleportBtn.Text = "ПРИНУДИТЕЛЬНАЯ ТЕЛЕПОРТАЦИЯ"
-        return
-    end
-    
-    local root = char:FindFirstChild("HumanoidRootPart")
-    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-    if not root or not targetRoot then
-        forceTeleportBtn.Text = "HumanoidRootPart не найден!"
-        task.wait(2)
-        forceTeleportBtn.Text = "ПРИНУДИТЕЛЬНАЯ ТЕЛЕПОРТАЦИЯ"
-        return
-    end
-    
-    -- Принудительная телепортация
-    root.CFrame = targetRoot.CFrame + Vector3.new(0, 0, 2) -- Немного сзади игрока
-    print("Принудительная телепортация выполнена!")
-    forceTeleportBtn.Text = "Телепортация выполнена!"
-    task.wait(2)
-    forceTeleportBtn.Text = "ПРИНУДИТЕЛЬНАЯ ТЕЛЕПОРТАЦИЯ"
-end)
+-- Принудительная телепортация и кнопка скрытного режима удалены - телепорт всегда работает в скрытном режиме
 
 -- Кнопка возврата удалена - теперь возврат происходит автоматически при остановке телепортации
 
@@ -2057,7 +1960,7 @@ local function updatePlayerList()
     
     -- Удаляем старые кнопки игроков
     for _, child in ipairs(innerContainer:GetChildren()) do
-        if child:IsA("TextButton") and child ~= stealthToggleBtn and child ~= startTeleportBtn and child ~= stopTeleportBtn and child ~= forceTeleportBtn and child ~= updatePlayersBtn then
+        if child:IsA("TextButton") and child ~= startTeleportBtn and child ~= stopTeleportBtn and child ~= updatePlayersBtn then
             -- Проверяем, что это кнопка игрока
             if child.Text and child.Text:len() > 0 and not child.Text:find("ОБНОВИТЬ") then
                 child:Destroy()
