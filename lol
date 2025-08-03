@@ -514,8 +514,9 @@ local function startTeleport()
 end
 
 local function stopTeleport()
-    print("Остановка телепортации")
+    print("Остановка телепортации к игроку")
     isTeleporting = false
+    TeleportConfig.Enabled = false
     
     local char = Players.LocalPlayer.Character
     if not char then 
@@ -525,12 +526,19 @@ local function stopTeleport()
     
     local root = char:FindFirstChild("HumanoidRootPart")
     
-    -- Удаляем BodyVelocity если он есть
+    -- Отключаем все соединения телепортации к игроку
+    for _, connection in ipairs(teleportConnections) do
+        if connection then
+            if typeof(connection) == "RBXScriptConnection" then
+                pcall(function() connection:Disconnect() end)
+            end
+        end
+    end
+    teleportConnections = {}
+    
+    -- Удаляем BodyVelocity от телепортации к игроку
     local bv = root and root:FindFirstChild("BodyVelocity")
     if bv then
-        -- Плавно останавливаем скорость
-        bv.Velocity = Vector3.new(0, 0, 0)
-        task.wait(0.1) -- Ждем немного для плавной остановки
         bv:Destroy()
     end
     
@@ -587,9 +595,10 @@ local function stopTeleport()
                 -- Достигли исходной позиции (в пределах 10 единиц)
                 local returnBv = root:FindFirstChild("BodyVelocity")
                 if returnBv then
-                    -- Плавно останавливаем скорость
+                    -- Останавливаем движение и застываем в воздухе на 2 секунды
                     returnBv.Velocity = Vector3.new(0, 0, 0)
-                    task.wait(0.1) -- Ждем немного для плавной остановки
+                    print("Застываем в воздухе на 2 секунды для сброса скорости...")
+                    task.wait(2) -- Ждем 2 секунды для полного сброса скорости
                     returnBv:Destroy()
                 end
                 
@@ -642,6 +651,8 @@ local function stopTeleport()
         stopTeleportBtn.Text = "ВЫКЛЮЧИТЬ ТЕЛЕПОРТАЦИЮ"
         stopTeleportBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
     end
+    
+    print("Телепортация к игроку остановлена, начинаем возврат на исходную позицию...")
 end
 
 local function getAlivePlayers()
