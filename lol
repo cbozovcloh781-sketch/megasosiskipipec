@@ -1321,7 +1321,7 @@ local tabPanel = Instance.new("Frame", frame)
 tabPanel.Name = "TabPanel"
 tabPanel.Size = UDim2.new(1, 0, 0, 40)
 tabPanel.Position = UDim2.new(0, 0, 0, 36)
-tabPanel.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+tabPanel.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
 tabPanel.BorderSizePixel = 0
 
 -- Создаем контейнер для кнопок вкладок
@@ -1346,13 +1346,14 @@ scroll.BackgroundTransparency = 1
 scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 scroll.ClipsDescendants = true
 
-local innerContainer = Instance.new("Frame", scroll)
-innerContainer.Name = "InnerContainer"
-innerContainer.BackgroundTransparency = 1
-innerContainer.Size = UDim2.new(1, -20, 0, 0)
-innerContainer.Position = UDim2.new(0, 10, 0, 0)
-innerContainer.AutomaticSize = Enum.AutomaticSize.Y
-innerContainer.ClipsDescendants = false
+-- Убираем старый innerContainer, так как используем вкладки
+-- local innerContainer = Instance.new("Frame", scroll)
+-- innerContainer.Name = "InnerContainer"
+-- innerContainer.BackgroundTransparency = 1
+-- innerContainer.Size = UDim2.new(1, -20, 0, 0)
+-- innerContainer.Position = UDim2.new(0, 10, 0, 0)
+-- innerContainer.AutomaticSize = Enum.AutomaticSize.Y
+-- innerContainer.ClipsDescendants = false
 
 -- Система вкладок
 local tabs = {}
@@ -1362,7 +1363,7 @@ local tabContainers = {}
 -- Функция создания вкладки
 local function createTab(name, icon)
     local tabButton = Instance.new("TextButton", tabButtonsContainer)
-    tabButton.Size = UDim2.new(0, 60, 0, 30)
+    tabButton.Size = UDim2.new(0, 70, 0, 30)
     tabButton.Text = icon .. " " .. name
     tabButton.Font = Enum.Font.GothamBold
     tabButton.TextSize = 10
@@ -1377,7 +1378,8 @@ local function createTab(name, icon)
     tabContainer.Name = name .. "Container"
     tabContainer.Size = UDim2.new(1, -20, 0, 0)
     tabContainer.Position = UDim2.new(0, 10, 0, 0)
-    tabContainer.BackgroundTransparency = 1
+    tabContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    tabContainer.BorderSizePixel = 0
     tabContainer.AutomaticSize = Enum.AutomaticSize.Y
     tabContainer.Visible = false
     
@@ -1385,6 +1387,13 @@ local function createTab(name, icon)
     local containerLayout = Instance.new("UIListLayout", tabContainer)
     containerLayout.Padding = UDim.new(0, 8)
     containerLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    
+    -- Добавляем отступы для содержимого
+    local padding = Instance.new("UIPadding", tabContainer)
+    padding.PaddingLeft = UDim.new(0, 10)
+    padding.PaddingRight = UDim.new(0, 10)
+    padding.PaddingTop = UDim.new(0, 10)
+    padding.PaddingBottom = UDim.new(0, 10)
     
     -- Сохраняем ссылки
     tabs[name] = tabButton
@@ -1404,12 +1413,16 @@ local function switchTab(tabName)
     
     -- Скрываем все контейнеры вкладок
     for _, container in pairs(tabContainers) do
-        container.Visible = false
+        if container then
+            container.Visible = false
+        end
     end
     
     -- Сбрасываем цвет всех кнопок вкладок
     for _, button in pairs(tabs) do
-        button.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+        if button then
+            button.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+        end
     end
     
     -- Показываем выбранную вкладку и выделяем кнопку
@@ -1421,6 +1434,7 @@ local function switchTab(tabName)
     end
     
     currentTab = tabName
+    print("Переключились на вкладку: " .. tabName)
 end
 
 local function toggleMenu()
@@ -1460,7 +1474,7 @@ local function sectionHeader(container, text)
 	
 	local lbl = Instance.new("TextLabel", container)
 	lbl.Text = text
-	lbl.Size = UDim2.new(1, -10, 0, 30)
+	lbl.Size = UDim2.new(1, 0, 0, 30)
 	lbl.Font = Enum.Font.GothamBold
 	lbl.TextSize = 16
 	lbl.TextColor3 = Color3.fromRGB(255,255,255)
@@ -1469,7 +1483,7 @@ end
 
 local function toggle(container, label, default, callback)
 	local btn = Instance.new("TextButton", container)
-	btn.Size = UDim2.new(1, -10, 0, 28)
+	btn.Size = UDim2.new(1, 0, 0, 28)
 	btn.Text = label .. ": " .. (default and "ON" or "OFF")
 	btn.Font = Enum.Font.Gotham
 	btn.TextSize = 14
@@ -1489,7 +1503,7 @@ end
 
 local function slider(container, label, min, max, value, callback)
 	local sliderContainer = Instance.new("Frame", container)
-	sliderContainer.Size = UDim2.new(1, -10, 0, 36)
+	sliderContainer.Size = UDim2.new(1, 0, 0, 36)
 	sliderContainer.BackgroundTransparency = 1
 
 	local lbl = Instance.new("TextLabel", sliderContainer)
@@ -1541,7 +1555,7 @@ local function colorPicker(container, labelText, currentColor, callback)
     lbl.Text = labelText
     lbl.TextColor3 = Color3.new(1,1,1)
     lbl.BackgroundTransparency = 1
-    lbl.Size = UDim2.new(1, -10, 0, 20)
+    lbl.Size = UDim2.new(1, 0, 0, 20)
     lbl.Font = Enum.Font.SourceSans
     lbl.TextSize = 14
 
@@ -1580,7 +1594,7 @@ end
 
 local function speedInput(container, label, currentSpeed, callback)
     local inputContainer = Instance.new("Frame", container)
-    inputContainer.Size = UDim2.new(1, -10, 0, 36)
+    inputContainer.Size = UDim2.new(1, 0, 0, 36)
     inputContainer.BackgroundTransparency = 1
 
     local lbl = Instance.new("TextLabel", inputContainer)
@@ -1617,7 +1631,7 @@ end
 
 local function playerSelector(container, label, currentPlayer, callback)
     local selectorContainer = Instance.new("Frame", container)
-    selectorContainer.Size = UDim2.new(1, -10, 0, 36)
+    selectorContainer.Size = UDim2.new(1, 0, 0, 36)
     selectorContainer.BackgroundTransparency = 1
 
     local lbl = Instance.new("TextLabel", selectorContainer)
@@ -1657,7 +1671,7 @@ end
 -- 🔥 Горячие клавиши переключения ESP / Aimbot / Fly
 local function keyBindButton(container, name, currentKey, callback)
     local btn = Instance.new("TextButton", container)
-    btn.Size = UDim2.new(1, -10, 0, 24)
+    btn.Size = UDim2.new(1, 0, 0, 24)
     btn.Text = name .. " Hotkey: [" .. (currentKey and tostring(currentKey.Name) or "None") .. "]"
     btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
     btn.TextColor3 = Color3.new(1,1,1)
@@ -1829,7 +1843,7 @@ sectionHeader(teleportTab, "🟩 Настройки телепортации")
 
 -- Показываем выбранного игрока
 local selectedPlayerLabel = Instance.new("TextLabel", teleportTab)
-selectedPlayerLabel.Size = UDim2.new(1, -10, 0, 24)
+selectedPlayerLabel.Size = UDim2.new(1, 0, 0, 24)
 selectedPlayerLabel.Text = "Выбранный игрок: " .. (TeleportConfig.SelectedPlayerName or "Не выбран")
 selectedPlayerLabel.Font = Enum.Font.GothamBold
 selectedPlayerLabel.TextSize = 14
@@ -1839,7 +1853,7 @@ selectedPlayerLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 -- Кнопка старт телепорт
 local startTeleportBtn = Instance.new("TextButton", teleportTab)
-startTeleportBtn.Size = UDim2.new(1, -10, 0, 28)
+startTeleportBtn.Size = UDim2.new(1, 0, 0, 28)
 startTeleportBtn.Text = "СТАРТ ТЕЛЕПОРТ"
 startTeleportBtn.Font = Enum.Font.GothamBold
 startTeleportBtn.TextSize = 14
@@ -1873,7 +1887,7 @@ end)
 
 -- Кнопка выключить телепортацию
 local stopTeleportBtn = Instance.new("TextButton", teleportTab)
-stopTeleportBtn.Size = UDim2.new(1, -10, 0, 28)
+stopTeleportBtn.Size = UDim2.new(1, 0, 0, 28)
 stopTeleportBtn.Text = "ВЫКЛЮЧИТЬ ТЕЛЕПОРТАЦИЮ"
 stopTeleportBtn.Font = Enum.Font.GothamBold
 stopTeleportBtn.TextSize = 14
@@ -1931,7 +1945,7 @@ sectionHeader(playersTab, "👥 Список игроков")
 
 -- Кнопка для обновления списка игроков
 local updatePlayersBtn = Instance.new("TextButton", playersTab)
-updatePlayersBtn.Size = UDim2.new(1, -10, 0, 28)
+updatePlayersBtn.Size = UDim2.new(1, 0, 0, 28)
 updatePlayersBtn.Text = "ОБНОВИТЬ СПИСОК ИГРОКОВ"
 updatePlayersBtn.Font = Enum.Font.GothamBold
 updatePlayersBtn.TextSize = 14
@@ -1968,21 +1982,21 @@ local function createPlayerListInMenu()
         if firstLetter ~= currentLetter then
             currentLetter = firstLetter
             
-            -- Создаем заголовок для буквы
-            local letterHeader = Instance.new("TextLabel", playersTab)
-            letterHeader.Size = UDim2.new(1, -10, 0, 20)
-            letterHeader.Text = "--- " .. firstLetter .. " ---"
-            letterHeader.Font = Enum.Font.GothamBold
-            letterHeader.TextSize = 12
-            letterHeader.TextColor3 = Color3.fromRGB(255,255,0)
-            letterHeader.BackgroundColor3 = Color3.fromRGB(30,30,40)
-            letterHeader.BorderSizePixel = 0
-            letterHeader.TextXAlignment = Enum.TextXAlignment.Center
-            Instance.new("UICorner", letterHeader).CornerRadius = UDim.new(0,4)
-        end
-        
-        local playerBtn = Instance.new("TextButton", playersTab)
-        playerBtn.Size = UDim2.new(1, -10, 0, 30)
+                    -- Создаем заголовок для буквы
+        local letterHeader = Instance.new("TextLabel", playersTab)
+        letterHeader.Size = UDim2.new(1, 0, 0, 20)
+        letterHeader.Text = "--- " .. firstLetter .. " ---"
+        letterHeader.Font = Enum.Font.GothamBold
+        letterHeader.TextSize = 12
+        letterHeader.TextColor3 = Color3.fromRGB(255,255,0)
+        letterHeader.BackgroundColor3 = Color3.fromRGB(30,30,40)
+        letterHeader.BorderSizePixel = 0
+        letterHeader.TextXAlignment = Enum.TextXAlignment.Center
+        Instance.new("UICorner", letterHeader).CornerRadius = UDim.new(0,4)
+    end
+    
+    local playerBtn = Instance.new("TextButton", playersTab)
+    playerBtn.Size = UDim2.new(1, 0, 0, 30)
         playerBtn.Text = player.Name
         playerBtn.Font = Enum.Font.Gotham
         playerBtn.TextSize = 12
@@ -2074,7 +2088,7 @@ local function updatePlayerList()
             
             -- Создаем заголовок для буквы
             local letterHeader = Instance.new("TextLabel", tempContainer)
-            letterHeader.Size = UDim2.new(1, -10, 0, 20)
+            letterHeader.Size = UDim2.new(1, 0, 0, 20)
             letterHeader.Text = "--- " .. firstLetter .. " ---"
             letterHeader.Font = Enum.Font.GothamBold
             letterHeader.TextSize = 12
@@ -2086,7 +2100,7 @@ local function updatePlayerList()
         end
         
         local playerBtn = Instance.new("TextButton", tempContainer)
-        playerBtn.Size = UDim2.new(1, -10, 0, 30)
+        playerBtn.Size = UDim2.new(1, 0, 0, 30)
         playerBtn.Text = player.Name
         playerBtn.Font = Enum.Font.Gotham
         playerBtn.TextSize = 12
