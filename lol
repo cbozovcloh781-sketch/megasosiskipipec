@@ -364,184 +364,69 @@ local function stopSpeedHack()
 end
 
 -- Новая система телепортации к игрокам
-local function createPlayerSelectionWindow()
-    print("=== СОЗДАНИЕ ОКНА ВЫБОРА ИГРОКА ===")
-    
-    -- Закрываем предыдущее окно если оно открыто
-    if playerSelectionWindow then
-        playerSelectionWindow:Destroy()
-        playerSelectionWindow = nil
+local function createStealthTeleport()
+    if not TeleportConfig.TargetPlayer then 
+        print("Не выбран игрок для телепортации")
+        return 
     end
     
-    -- Создаем новое окно
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "PlayerSelectionScreenGui"
-    screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-    
-    playerSelectionWindow = Instance.new("Frame", screenGui)
-    playerSelectionWindow.Name = "PlayerSelectionWindow"
-    playerSelectionWindow.Size = UDim2.new(0, 350, 0, 500)
-    playerSelectionWindow.Position = UDim2.new(0.5, -175, 0.5, -250)
-    playerSelectionWindow.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-    playerSelectionWindow.BorderSizePixel = 2
-    playerSelectionWindow.BorderColor3 = Color3.fromRGB(100, 100, 120)
-    playerSelectionWindow.ZIndex = 1000
-    Instance.new("UICorner", playerSelectionWindow).CornerRadius = UDim.new(0, 8)
-    
-    print("Окно создано: " .. tostring(playerSelectionWindow))
-    print("Позиция окна: " .. tostring(playerSelectionWindow.Position))
-    print("Размер окна: " .. tostring(playerSelectionWindow.Size))
-    
-    -- Заголовок окна
-    local titleBar = Instance.new("Frame", playerSelectionWindow)
-    titleBar.Name = "TitleBar"
-    titleBar.Size = UDim2.new(1, 0, 0, 50)
-    titleBar.Position = UDim2.new(0, 0, 0, 0)
-    titleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-    titleBar.BorderSizePixel = 0
-    Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 8, 0, 0)
-    
-    local titleText = Instance.new("TextLabel", titleBar)
-    titleText.Name = "TitleText"
-    titleText.Size = UDim2.new(1, -60, 1, 0)
-    titleText.Position = UDim2.new(0, 20, 0, 0)
-    titleText.BackgroundTransparency = 1
-    titleText.Text = "ВЫБЕРИТЕ ИГРОКА ДЛЯ ТЕЛЕПОРТАЦИИ"
-    titleText.Font = Enum.Font.GothamBold
-    titleText.TextSize = 18
-    titleText.TextColor3 = Color3.new(1, 1, 1)
-    titleText.TextXAlignment = Enum.TextXAlignment.Left
-    
-    -- Кнопка закрытия
-    local closeBtn = Instance.new("TextButton", titleBar)
-    closeBtn.Name = "CloseButton"
-    closeBtn.Size = UDim2.new(0, 30, 0, 30)
-    closeBtn.Position = UDim2.new(1, -40, 0.5, -15)
-    closeBtn.Text = "✕"
-    closeBtn.Font = Enum.Font.GothamBold
-    closeBtn.TextSize = 18
-    closeBtn.TextColor3 = Color3.new(1, 1, 1)
-    closeBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-    closeBtn.AutoButtonColor = false
-    Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
-    
-    closeBtn.MouseButton1Click:Connect(function()
-        playerSelectionWindow:Destroy()
-        playerSelectionWindow = nil
-    end)
-    
-    -- Контейнер для списка игроков
-    local scrollFrame = Instance.new("ScrollingFrame", playerSelectionWindow)
-    scrollFrame.Name = "PlayerList"
-    scrollFrame.Size = UDim2.new(1, -20, 1, -70)
-    scrollFrame.Position = UDim2.new(0, 10, 0, 60)
-    scrollFrame.BackgroundTransparency = 1
-    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-    scrollFrame.ScrollBarThickness = 6
-    scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    
-    local listLayout = Instance.new("UIListLayout", scrollFrame)
-    listLayout.Padding = UDim.new(0, 5)
-    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    
-    print("ScrollFrame создан: " .. tostring(scrollFrame))
-    print("Размер ScrollFrame: " .. tostring(scrollFrame.Size))
-    print("Позиция ScrollFrame: " .. tostring(scrollFrame.Position))
-    
-    -- Получаем список всех игроков (включая мертвых для тестирования)
-    local allPlayers = Players:GetPlayers()
-    local alivePlayers = {}
-    
-    print("Всего игроков на сервере: " .. #allPlayers)
-    
-    -- Создаем список всех игроков кроме локального
-    for _, player in ipairs(allPlayers) do
-        if player and player ~= Players.LocalPlayer then
-            table.insert(alivePlayers, player)
-            print("Добавлен игрок: " .. player.Name)
-        end
+    local char = Players.LocalPlayer.Character
+    local targetChar = TeleportConfig.TargetPlayer.Character
+    if not char or not targetChar then 
+        print("Персонаж не найден")
+        return 
     end
     
-    print("Найдено игроков для отображения: " .. #alivePlayers)
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+    if not root or not targetRoot then 
+        print("HumanoidRootPart не найден")
+        return 
+    end
     
-    -- Обновляем заголовок с количеством игроков
-    titleText.Text = "ВЫБЕРИТЕ ИГРОКА ДЛЯ ТЕЛЕПОРТАЦИИ (" .. #alivePlayers .. " игроков)"
+    isTeleporting = true
+    print("Скрытая телепортация к " .. TeleportConfig.TargetPlayer.Name .. " начата")
     
-    if #alivePlayers == 0 then
-        local noPlayersText = Instance.new("TextLabel", scrollFrame)
-        noPlayersText.Size = UDim2.new(1, 0, 0, 50)
-        noPlayersText.Text = "НЕТ ДРУГИХ ИГРОКОВ НА СЕРВЕРЕ"
-        noPlayersText.Font = Enum.Font.GothamBold
-        noPlayersText.TextSize = 16
-        noPlayersText.TextColor3 = Color3.fromRGB(255, 100, 100)
-        noPlayersText.BackgroundTransparency = 1
-        noPlayersText.TextXAlignment = Enum.TextXAlignment.Center
-    else
-        -- Создаем кнопки для каждого игрока
-        for i, player in ipairs(alivePlayers) do
-            print("Создаем кнопку для игрока " .. i .. ": " .. player.Name)
-            
-            local playerButton = Instance.new("TextButton", scrollFrame)
-            playerButton.Size = UDim2.new(1, 0, 0, 50)
-            playerButton.Text = player.Name
-            playerButton.Font = Enum.Font.GothamBold
-            playerButton.TextSize = 20
-            playerButton.TextColor3 = Color3.new(1, 1, 1)
-            playerButton.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-            playerButton.AutoButtonColor = false
-            playerButton.BorderSizePixel = 2
-            playerButton.BorderColor3 = Color3.fromRGB(150, 150, 170)
-            Instance.new("UICorner", playerButton).CornerRadius = UDim.new(0, 8)
-            
-            -- Эффекты при наведении
-            playerButton.MouseEnter:Connect(function()
-                playerButton.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
-                playerButton.BorderColor3 = Color3.fromRGB(200, 200, 220)
-                playerButton.TextColor3 = Color3.new(1, 1, 0) -- Желтый текст при наведении
-            end)
-            
-            playerButton.MouseLeave:Connect(function()
-                playerButton.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-                playerButton.BorderColor3 = Color3.fromRGB(150, 150, 170)
-                playerButton.TextColor3 = Color3.new(1, 1, 1) -- Белый текст
-            end)
-            
-            -- Обработка выбора игрока
-            playerButton.MouseButton1Click:Connect(function()
-                TeleportConfig.TargetPlayer = player
-                TeleportConfig.SelectedPlayerName = player.Name
-                print("Выбран игрок: " .. player.Name)
-                
-                -- Закрываем окно
-                playerSelectionWindow:Destroy()
-                playerSelectionWindow = nil
-                
-                -- Обновляем GUI
-                if guiCallbacks.teleport then
-                    guiCallbacks.teleport.Text = "Выбранный игрок: " .. player.Name
-                end
-            end)
-            
-            print("Кнопка для игрока " .. player.Name .. " создана успешно")
+    -- Сохраняем начальную координату при старте телепортации
+    TeleportConfig.OriginalPosition = root.Position
+    print("СОХРАНЕНА НАЧАЛЬНАЯ КООРДИНАТА: " .. tostring(TeleportConfig.OriginalPosition))
+    
+    -- Включаем NoClip для прохождения сквозь препятствия
+    if not isNoClipping then
+        startNoClip()
+    end
+    
+    -- Создаем соединение для скрытой телепортации
+    local stealthTeleportLoop = RunService.Heartbeat:Connect(function()
+        if not isTeleporting or not targetChar or not targetChar.Parent then
+            print("Телепортация остановлена - игрок не найден")
+            return
         end
         
-        print("Всего создано кнопок: " .. #alivePlayers)
-    end
-    
-    -- Закрытие по ESC
-    local escConnection
-    escConnection = UserInputService.InputBegan:Connect(function(input, gp)
-        if input.KeyCode == Enum.KeyCode.Escape then
-            playerSelectionWindow:Destroy()
-            playerSelectionWindow = nil
-            if escConnection then
-                escConnection:Disconnect()
+        local currentTargetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+        if currentTargetRoot then
+            local targetPos = currentTargetRoot.Position
+            local currentPos = root.Position
+            local distance = (targetPos - currentPos).Magnitude
+            
+            print("Расстояние до игрока: " .. distance .. " | Позиция игрока: " .. tostring(targetPos) .. " | Моя позиция: " .. tostring(currentPos))
+            
+            -- Сверхбыстрая телепортация к игроку
+            local bv = root:FindFirstChild("BodyVelocity")
+            if not bv then
+                bv = Instance.new("BodyVelocity", root)
+                bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
             end
+            
+            local direction = (targetPos - currentPos).Unit
+            local moveSpeed = 500 -- Сверхвысокая скорость для почти моментального движения
+            bv.Velocity = direction * moveSpeed
+            
+            print("Сверхбыстрая телепортация к игроку со скоростью: " .. moveSpeed)
         end
     end)
     
-    print("=== ОКНО ВЫБОРА ИГРОКА СОЗДАНО УСПЕШНО ===")
-    print("Количество игроков в списке: " .. #alivePlayers)
+    table.insert(teleportConnections, stealthTeleportLoop)
 end
 
 local function startTeleport()
@@ -567,75 +452,34 @@ local function startTeleport()
     isTeleporting = true
     print("Телепортация к " .. TeleportConfig.TargetPlayer.Name .. " начата")
     
-    -- Сохраняем оригинальную позицию
-    if not TeleportConfig.OriginalPosition then
-        TeleportConfig.OriginalPosition = root.Position
-        print("Сохранена позиция: " .. tostring(TeleportConfig.OriginalPosition))
+    -- Сохраняем начальную координату при старте телепортации
+    TeleportConfig.OriginalPosition = root.Position
+    print("СОХРАНЕНА НАЧАЛЬНАЯ КООРДИНАТА: " .. tostring(TeleportConfig.OriginalPosition))
+    
+    -- Включаем NoClip для телепортации
+    if not isNoClipping then
+        startNoClip()
+        print("NoClip включен для телепортации к игроку")
     end
     
-    if TeleportConfig.UseStealthMode then
-        -- Скрытый режим: незаметная телепортация через Humanoid
-        print("Используется скрытый режим телепортации")
-        
-        -- Создаем соединение для скрытой телепортации
-        local stealthTeleportLoop = RunService.Heartbeat:Connect(function()
-            if not isTeleporting or not targetChar or not targetChar.Parent then
-                return
-            end
-            
-            local currentTargetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-            if currentTargetRoot then
-                local targetPos = currentTargetRoot.Position
-                local currentPos = root.Position
-                local distance = (targetPos - currentPos).Magnitude
-                
-                if distance > 3 then -- Если далеко, приближаемся
-                    -- Используем Humanoid для незаметного движения
-                    local humanoid = char:FindFirstChild("Humanoid")
-                    if humanoid then
-                        -- Плавно двигаемся к цели
-                        local direction = (targetPos - currentPos).Unit
-                        local moveSpeed = math.min(distance * 0.05, 20) -- Медленная скорость
-                        
-                        -- Устанавливаем скорость движения
-                        humanoid.WalkSpeed = moveSpeed
-                        
-                        -- Двигаемся в направлении цели
-                        humanoid:Move(direction)
-                    end
-                else
-                    -- Если близко, останавливаемся
-                    local humanoid = char:FindFirstChild("Humanoid")
-                    if humanoid then
-                        humanoid.WalkSpeed = 16 -- Возвращаем нормальную скорость
-                    end
-                end
-            end
-        end)
-        
-        table.insert(teleportConnections, stealthTeleportLoop)
-    else
-        -- Обычный режим: прямая телепортация
-        print("Используется обычный режим телепортации")
-        
-        local teleportLoop = RunService.Heartbeat:Connect(function()
-            if not isTeleporting or not targetChar or not targetChar.Parent then
-                return
-            end
-            
-            local currentTargetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-            if currentTargetRoot then
-                root.CFrame = currentTargetRoot.CFrame
-            end
-        end)
-        
-        table.insert(teleportConnections, teleportLoop)
+    -- Обновляем GUI - кнопка "СТАРТ ТЕЛЕПОРТ" становится красной
+    if startTeleportBtn then
+        startTeleportBtn.Text = "ТЕЛЕПОРТАЦИЯ АКТИВНА"
+        startTeleportBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
     end
+    if stopTeleportBtn then
+        stopTeleportBtn.Text = "ОСТАНОВИТЬ ТЕЛЕПОРТАЦИЮ"
+        stopTeleportBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
+    end
+    
+    -- Всегда используем скрытную функцию телепортации
+    createStealthTeleport()
 end
 
 local function stopTeleport()
-    print("Остановка телепортации")
+    print("Остановка телепортации к игроку")
     isTeleporting = false
+    TeleportConfig.Enabled = false
     
     local char = Players.LocalPlayer.Character
     if not char then 
@@ -645,23 +489,149 @@ local function stopTeleport()
     
     local root = char:FindFirstChild("HumanoidRootPart")
     
-    -- Восстанавливаем нормальную скорость движения
-    local humanoid = char and char:FindFirstChild("Humanoid")
-    if humanoid then
-        humanoid.WalkSpeed = 16
+    -- Отключаем все соединения телепортации к игроку
+    for _, connection in ipairs(teleportConnections) do
+        if connection then
+            if typeof(connection) == "RBXScriptConnection" then
+                pcall(function() connection:Disconnect() end)
+            end
+        end
     end
+    teleportConnections = {}
     
-    -- Удаляем BodyVelocity если он есть
+    -- Удаляем BodyVelocity от телепортации к игроку
     local bv = root and root:FindFirstChild("BodyVelocity")
     if bv then
         bv:Destroy()
     end
     
     if root and TeleportConfig.OriginalPosition then
-        -- Возвращаемся на оригинальную позицию
-        root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
-        TeleportConfig.OriginalPosition = nil
-        print("Возврат на исходную позицию")
+        -- Быстрый возврат на исходную позицию с постоянным движением
+        print("Быстрый возврат на исходную позицию: " .. tostring(TeleportConfig.OriginalPosition))
+        
+        -- Создаем двухэтапное движение к исходной позиции
+        local returnStartTime = tick()
+        local fastPhaseComplete = false
+        
+        -- Включаем NoClip для возврата
+        if not isNoClipping then
+            startNoClip()
+            print("NoClip включен для возврата на исходную позицию")
+        end
+        
+        local returnLoop = RunService.Heartbeat:Connect(function()
+            if not root or not root.Parent then
+                return
+            end
+            
+            local currentPos = root.Position
+            local returnPos = TeleportConfig.OriginalPosition
+            local distance = (returnPos - currentPos).Magnitude
+            local elapsedTime = tick() - returnStartTime
+            
+            print("Расстояние до исходной позиции: " .. distance .. " | Время: " .. elapsedTime)
+            
+                    if distance > 5 then
+            -- Продолжаем движение к начальной координате
+            local returnBv = root:FindFirstChild("BodyVelocity")
+            if not returnBv then
+                returnBv = Instance.new("BodyVelocity", root)
+                returnBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+            end
+            
+            local returnDirection = (returnPos - currentPos).Unit
+            local returnSpeed = 1000 -- Очень высокая скорость для быстрого возврата
+            
+            returnBv.Velocity = returnDirection * returnSpeed
+            print("Быстрое движение к начальной координате: " .. distance .. " единиц осталось")
+                else
+            -- Достигли начальной координаты (в пределах 5 единиц)
+            local returnBv = root:FindFirstChild("BodyVelocity")
+            if returnBv then
+                -- Останавливаем движение и застываем в воздухе на 2 секунды
+                returnBv.Velocity = Vector3.new(0, 0, 0)
+                print("ДОСТИГНУТА НАЧАЛЬНАЯ КООРДИНАТА! Застываем в воздухе на 2 секунды для сброса скорости...")
+                task.wait(2) -- Ждем 2 секунды для полного сброса скорости
+                returnBv:Destroy()
+            end
+            
+            -- Финальная телепортация на точную начальную координату
+            root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
+            TeleportConfig.OriginalPosition = nil
+            
+            -- Откладываем отключение NoClip на 10 секунд после возврата
+            print("NoClip будет отключен через 10 секунд...")
+            task.spawn(function()
+                task.wait(10)
+                if isNoClipping then
+                    stopNoClip()
+                    print("NoClip отключен через 10 секунд после возврата")
+                else
+                    print("NoClip уже отключен")
+                end
+            end)
+            
+            -- Отключаем цикл возврата
+            if returnLoop then
+                returnLoop:Disconnect()
+            end
+            
+            print("ВОЗВРАТ НА НАЧАЛЬНУЮ КООРДИНАТУ ЗАВЕРШЕН!")
+            
+            -- Дополнительная проверка: если не в радиусе 10 studs, продолжаем перемещение
+            if TeleportConfig.OriginalPosition then
+                print("ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: Запускаем постоянное перемещение к исходной точке...")
+                
+                local finalCheckLoop = RunService.Heartbeat:Connect(function()
+                    if not root or not root.Parent then
+                        return
+                    end
+                    
+                    local currentPos = root.Position
+                    local targetPos = TeleportConfig.OriginalPosition
+                    local distance = (targetPos - currentPos).Magnitude
+                    
+                    if distance > 10 then
+                        -- Продолжаем перемещение к исходной точке
+                        local finalBv = root:FindFirstChild("BodyVelocity")
+                        if not finalBv then
+                            finalBv = Instance.new("BodyVelocity", root)
+                            finalBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                        end
+                        
+                        local direction = (targetPos - currentPos).Unit
+                        local speed = 800
+                        finalBv.Velocity = direction * speed
+                        
+                        print("ДОПОЛНИТЕЛЬНОЕ ПЕРЕМЕЩЕНИЕ: " .. distance .. " studs до исходной точки")
+                    else
+                        -- Достигли радиуса 10 studs, останавливаемся
+                        local finalBv = root:FindFirstChild("BodyVelocity")
+                        if finalBv then
+                            finalBv:Destroy()
+                        end
+                        
+                        -- Финальная телепортация на точную позицию
+                        root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
+                        TeleportConfig.OriginalPosition = nil
+                        
+                        -- Отключаем дополнительную проверку
+                        if finalCheckLoop then
+                            finalCheckLoop:Disconnect()
+                        end
+                        
+                        print("ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА ЗАВЕРШЕНА: Достигнута исходная точка!")
+                    end
+                end)
+                
+                -- Добавляем соединение в список для очистки
+                table.insert(teleportConnections, finalCheckLoop)
+            end
+        end
+        end)
+        
+        -- Добавляем соединение в список для очистки
+        table.insert(teleportConnections, returnLoop)
     end
     
     -- Отключаем все соединения
@@ -673,6 +643,252 @@ local function stopTeleport()
         end
     end
     teleportConnections = {}
+    
+    -- Восстанавливаем нормальные настройки движения
+    local humanoid = char and char:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = 16
+        humanoid.JumpPower = 50
+    end
+    
+    -- Откладываем отключение NoClip на 10 секунд в конце функции stopTeleport
+    print("NoClip будет отключен через 10 секунд в конце stopTeleport...")
+    task.spawn(function()
+        task.wait(10)
+        if isNoClipping then
+            stopNoClip()
+            print("NoClip отключен через 10 секунд в конце stopTeleport")
+        else
+            print("NoClip уже отключен в конце stopTeleport")
+        end
+    end)
+    
+    -- Обновляем GUI - кнопка "СТАРТ ТЕЛЕПОРТ" становится зеленой
+    if startTeleportBtn then
+        startTeleportBtn.Text = "СТАРТ ТЕЛЕПОРТ"
+        startTeleportBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
+    end
+    if stopTeleportBtn then
+        stopTeleportBtn.Text = "ВЫКЛЮЧИТЬ ТЕЛЕПОРТАЦИЮ"
+        stopTeleportBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+    end
+    
+    print("Телепортация к игроку остановлена, начинаем возврат на исходную позицию...")
+    
+    -- Автоматически начинаем возврат на начальную координату
+    if root and TeleportConfig.OriginalPosition then
+        print("НАЧИНАЕМ ВОЗВРАТ НА НАЧАЛЬНУЮ КООРДИНАТУ: " .. tostring(TeleportConfig.OriginalPosition))
+        
+        -- Включаем NoClip для возврата
+        if not isNoClipping then
+            startNoClip()
+            print("NoClip включен для возврата на начальную координату")
+        end
+        
+        -- Создаем движение к начальной координате
+        local returnStartTime = tick()
+        local returnAttempts = 0
+        local maxAttempts = 300 -- Максимум 5 секунд (300 кадров при 60 FPS)
+        
+        local returnLoop = RunService.Heartbeat:Connect(function()
+            returnAttempts = returnAttempts + 1
+            
+            -- Проверяем, не застряли ли мы
+            if returnAttempts > maxAttempts then
+                print("ПРЕДУПРЕЖДЕНИЕ: Возврат занимает слишком много времени, принудительная телепортация...")
+                root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
+                TeleportConfig.OriginalPosition = nil
+                if isNoClipping then
+                    stopNoClip()
+                    print("NoClip отключен после принудительного возврата")
+                end
+                if returnLoop then
+                    returnLoop:Disconnect()
+                end
+                print("ПРИНУДИТЕЛЬНЫЙ ВОЗВРАТ НА НАЧАЛЬНУЮ КООРДИНАТУ ЗАВЕРШЕН!")
+                
+                -- Дополнительная проверка для принудительного возврата
+                if TeleportConfig.OriginalPosition then
+                    print("ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА ПРИНУДИТЕЛЬНОГО ВОЗВРАТА: Запускаем постоянное перемещение...")
+                    
+                    local finalCheckLoop = RunService.Heartbeat:Connect(function()
+                        if not root or not root.Parent then
+                            return
+                        end
+                        
+                        local currentPos = root.Position
+                        local targetPos = TeleportConfig.OriginalPosition
+                        local distance = (targetPos - currentPos).Magnitude
+                        
+                        if distance > 10 then
+                            -- Продолжаем перемещение к исходной точке
+                            local finalBv = root:FindFirstChild("BodyVelocity")
+                            if not finalBv then
+                                finalBv = Instance.new("BodyVelocity", root)
+                                finalBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                            end
+                            
+                            local direction = (targetPos - currentPos).Unit
+                            local speed = 800
+                            finalBv.Velocity = direction * speed
+                            
+                            print("ДОПОЛНИТЕЛЬНОЕ ПЕРЕМЕЩЕНИЕ (ПРИНУДИТЕЛЬНОЕ): " .. distance .. " studs до исходной точки")
+                        else
+                            -- Достигли радиуса 10 studs, останавливаемся
+                            local finalBv = root:FindFirstChild("BodyVelocity")
+                            if finalBv then
+                                finalBv:Destroy()
+                            end
+                            
+                            -- Финальная телепортация на точную позицию
+                            root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
+                            TeleportConfig.OriginalPosition = nil
+                            
+                            -- Отключаем дополнительную проверку
+                            if finalCheckLoop then
+                                finalCheckLoop:Disconnect()
+                            end
+                            
+                            print("ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА ПРИНУДИТЕЛЬНОГО ВОЗВРАТА ЗАВЕРШЕНА!")
+                        end
+                    end)
+                    
+                    -- Добавляем соединение в список для очистки
+                    table.insert(teleportConnections, finalCheckLoop)
+                end
+                return
+            end
+            
+            if not root or not root.Parent then
+                print("ОШИБКА: Персонаж не найден во время возврата")
+                if returnLoop then
+                    returnLoop:Disconnect()
+                end
+                return
+            end
+            
+            local currentPos = root.Position
+            local returnPos = TeleportConfig.OriginalPosition
+            local distance = (returnPos - currentPos).Magnitude
+            
+            print("Расстояние до начальной координаты: " .. distance .. " | Попытка: " .. returnAttempts)
+            
+            if distance > 3 then
+                -- Продолжаем движение к начальной координате
+                local returnBv = root:FindFirstChild("BodyVelocity")
+                if not returnBv then
+                    returnBv = Instance.new("BodyVelocity", root)
+                    returnBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                end
+                
+                local returnDirection = (returnPos - currentPos).Unit
+                local returnSpeed = 1500 -- Увеличиваем скорость для более быстрого возврата
+                
+                returnBv.Velocity = returnDirection * returnSpeed
+                print("Быстрое движение к начальной координате: " .. distance .. " единиц осталось")
+            else
+                -- Достигли начальной координаты (в пределах 3 единиц)
+                local returnBv = root:FindFirstChild("BodyVelocity")
+                if returnBv then
+                    -- Останавливаем движение и застываем в воздухе на 2 секунды
+                    returnBv.Velocity = Vector3.new(0, 0, 0)
+                    print("ДОСТИГНУТА НАЧАЛЬНАЯ КООРДИНАТА! Застываем в воздухе на 2 секунды для сброса скорости...")
+                    task.wait(2) -- Ждем 2 секунды для полного сброса скорости
+                    returnBv:Destroy()
+                end
+                
+                -- Финальная телепортация на точную начальную координату
+                root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
+                TeleportConfig.OriginalPosition = nil
+                
+                -- Откладываем отключение NoClip на 10 секунд после возврата
+                print("NoClip будет отключен через 10 секунд...")
+                task.spawn(function()
+                    task.wait(10)
+                    if isNoClipping then
+                        stopNoClip()
+                        print("NoClip отключен через 10 секунд после возврата")
+                    else
+                        print("NoClip уже отключен")
+                    end
+                end)
+                
+                -- Отключаем цикл возврата
+                if returnLoop then
+                    returnLoop:Disconnect()
+                end
+                
+                print("ВОЗВРАТ НА НАЧАЛЬНУЮ КООРДИНАТУ ЗАВЕРШЕН!")
+                
+                -- Дополнительная проверка: если не в радиусе 10 studs, продолжаем перемещение
+                if TeleportConfig.OriginalPosition then
+                    print("ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: Запускаем постоянное перемещение к исходной точке...")
+                    
+                    local finalCheckLoop = RunService.Heartbeat:Connect(function()
+                        if not root or not root.Parent then
+                            return
+                        end
+                        
+                        local currentPos = root.Position
+                        local targetPos = TeleportConfig.OriginalPosition
+                        local distance = (targetPos - currentPos).Magnitude
+                        
+                        if distance > 10 then
+                            -- Продолжаем перемещение к исходной точке
+                            local finalBv = root:FindFirstChild("BodyVelocity")
+                            if not finalBv then
+                                finalBv = Instance.new("BodyVelocity", root)
+                                finalBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                            end
+                            
+                            local direction = (targetPos - currentPos).Unit
+                            local speed = 800
+                            finalBv.Velocity = direction * speed
+                            
+                            print("ДОПОЛНИТЕЛЬНОЕ ПЕРЕМЕЩЕНИЕ: " .. distance .. " studs до исходной точки")
+                        else
+                            -- Достигли радиуса 10 studs, останавливаемся
+                            local finalBv = root:FindFirstChild("BodyVelocity")
+                            if finalBv then
+                                finalBv:Destroy()
+                            end
+                            
+                            -- Финальная телепортация на точную позицию
+                            root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
+                            TeleportConfig.OriginalPosition = nil
+                            
+                            -- Отключаем дополнительную проверку
+                            if finalCheckLoop then
+                                finalCheckLoop:Disconnect()
+                            end
+                            
+                            print("ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА ЗАВЕРШЕНА: Достигнута исходная точка!")
+                        end
+                    end)
+                    
+                    -- Добавляем соединение в список для очистки
+                    table.insert(teleportConnections, finalCheckLoop)
+                end
+            end
+        end)
+        
+        -- Добавляем соединение в список для очистки
+        table.insert(teleportConnections, returnLoop)
+    else
+        print("ОШИБКА: Нет сохраненной начальной координаты или персонаж не найден!")
+        print("Попытка принудительного возврата...")
+        
+        -- Принудительный возврат если что-то пошло не так
+        if root and TeleportConfig.OriginalPosition then
+            root.CFrame = CFrame.new(TeleportConfig.OriginalPosition)
+            TeleportConfig.OriginalPosition = nil
+            if isNoClipping then
+                stopNoClip()
+                print("NoClip отключен после принудительного возврата")
+            end
+            print("ПРИНУДИТЕЛЬНЫЙ ВОЗВРАТ ВЫПОЛНЕН!")
+        end
+    end
 end
 
 local function getAlivePlayers()
@@ -1083,7 +1299,7 @@ titleText.Name = "TitleText"
 titleText.Size = UDim2.new(1, -40, 1, 0)
 titleText.Position = UDim2.new(0, 10, 0, 0)
 titleText.BackgroundTransparency = 1
-titleText.Text = "SSLKIN ESP + AIMBOT + FLY"
+titleText.Text = "SSLKIN UNI-GUI"
 titleText.Font = Enum.Font.GothamBold
 titleText.TextSize = 14
 titleText.TextColor3 = Color3.new(1, 1, 1)
@@ -1571,28 +1787,12 @@ divider5.BorderSizePixel = 0
 -- 🟩 Teleport System Integration
 sectionHeader("🟩 Настройки телепортации")
 
--- Кнопка выбора игрока
-local selectPlayerBtn = Instance.new("TextButton", innerContainer)
-selectPlayerBtn.Size = UDim2.new(1, -10, 0, 28)
-selectPlayerBtn.Text = "Выбрать игрока для телепортации"
-selectPlayerBtn.Font = Enum.Font.Gotham
-selectPlayerBtn.TextSize = 14
-selectPlayerBtn.TextColor3 = Color3.new(1,1,1)
-selectPlayerBtn.BackgroundColor3 = Color3.fromRGB(60,60,80)
-selectPlayerBtn.AutoButtonColor = false
-Instance.new("UICorner", selectPlayerBtn).CornerRadius = UDim.new(0,6)
-
-selectPlayerBtn.MouseButton1Click:Connect(function()
-    print("=== НАЖАТА КНОПКА ВЫБОРА ИГРОКА ===")
-    createPlayerSelectionWindow()
-end)
-
 -- Показываем выбранного игрока
 local selectedPlayerLabel = Instance.new("TextLabel", innerContainer)
 selectedPlayerLabel.Size = UDim2.new(1, -10, 0, 24)
 selectedPlayerLabel.Text = "Выбранный игрок: " .. (TeleportConfig.SelectedPlayerName or "Не выбран")
-selectedPlayerLabel.Font = Enum.Font.Gotham
-selectedPlayerLabel.TextSize = 12
+selectedPlayerLabel.Font = Enum.Font.GothamBold
+selectedPlayerLabel.TextSize = 14
 selectedPlayerLabel.TextColor3 = Color3.new(1,1,1)
 selectedPlayerLabel.BackgroundTransparency = 1
 selectedPlayerLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -1658,22 +1858,246 @@ stopTeleportBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Переключатель режима телепортации
-local stealthToggleBtn = Instance.new("TextButton", innerContainer)
-stealthToggleBtn.Size = UDim2.new(1, -10, 0, 28)
-stealthToggleBtn.Text = "Скрытый режим: " .. (TeleportConfig.UseStealthMode and "ВКЛ" or "ВЫКЛ")
-stealthToggleBtn.Font = Enum.Font.Gotham
-stealthToggleBtn.TextSize = 14
-stealthToggleBtn.TextColor3 = Color3.new(1,1,1)
-stealthToggleBtn.BackgroundColor3 = TeleportConfig.UseStealthMode and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
-stealthToggleBtn.AutoButtonColor = false
-Instance.new("UICorner", stealthToggleBtn).CornerRadius = UDim.new(0,6)
+-- Создаем список игроков прямо в меню
+local function createPlayerListInMenu()
+    local allPlayers = Players:GetPlayers()
+    local alivePlayers = {}
+    
+    -- Получаем список всех игроков кроме локального
+    for _, player in ipairs(allPlayers) do
+        if player and player ~= Players.LocalPlayer then
+            table.insert(alivePlayers, player)
+        end
+    end
+    
+    -- Сортируем игроков по алфавиту (по имени)
+    table.sort(alivePlayers, function(a, b)
+        return a.Name:lower() < b.Name:lower()
+    end)
+    
+    print("Создаем отсортированный список игроков в меню: " .. #alivePlayers .. " игроков")
+    
+    -- Создаем кнопки для каждого игрока
+    local currentLetter = ""
+    for i, player in ipairs(alivePlayers) do
+        local firstLetter = player.Name:sub(1,1):upper()
+        
+        -- Добавляем разделитель для новой буквы
+        if firstLetter ~= currentLetter then
+            currentLetter = firstLetter
+            
+            -- Создаем заголовок для буквы
+            local letterHeader = Instance.new("TextLabel", innerContainer)
+            letterHeader.Size = UDim2.new(1, -10, 0, 20)
+            letterHeader.Text = "--- " .. firstLetter .. " ---"
+            letterHeader.Font = Enum.Font.GothamBold
+            letterHeader.TextSize = 12
+            letterHeader.TextColor3 = Color3.fromRGB(255,255,0)
+            letterHeader.BackgroundColor3 = Color3.fromRGB(30,30,40)
+            letterHeader.BorderSizePixel = 0
+            letterHeader.TextXAlignment = Enum.TextXAlignment.Center
+            Instance.new("UICorner", letterHeader).CornerRadius = UDim.new(0,4)
+        end
+        
+        local playerBtn = Instance.new("TextButton", innerContainer)
+        playerBtn.Size = UDim2.new(1, -10, 0, 30)
+        playerBtn.Text = player.Name
+        playerBtn.Font = Enum.Font.Gotham
+        playerBtn.TextSize = 12
+        playerBtn.TextColor3 = Color3.new(1,1,1)
+        playerBtn.BackgroundColor3 = Color3.fromRGB(50,50,60)
+        playerBtn.AutoButtonColor = false
+        playerBtn.BorderSizePixel = 1
+        playerBtn.BorderColor3 = Color3.fromRGB(100,100,120)
+        Instance.new("UICorner", playerBtn).CornerRadius = UDim.new(0,4)
+        
+        -- Эффекты при наведении
+        playerBtn.MouseEnter:Connect(function()
+            playerBtn.BackgroundColor3 = Color3.fromRGB(70,70,80)
+            playerBtn.BorderColor3 = Color3.fromRGB(150,150,170)
+        end)
+        
+        playerBtn.MouseLeave:Connect(function()
+            playerBtn.BackgroundColor3 = Color3.fromRGB(50,50,60)
+            playerBtn.BorderColor3 = Color3.fromRGB(100,100,120)
+        end)
+        
+        -- Обработка выбора игрока
+        playerBtn.MouseButton1Click:Connect(function()
+                    -- Сбрасываем цвет всех кнопок игроков
+        for _, btn in ipairs(innerContainer:GetChildren()) do
+            if btn:IsA("TextButton") and btn ~= startTeleportBtn and btn ~= stopTeleportBtn and btn ~= updatePlayersBtn then
+                btn.BackgroundColor3 = Color3.fromRGB(50,50,60)
+                btn.BorderColor3 = Color3.fromRGB(100,100,120)
+            end
+        end
+            
+            -- Выделяем выбранную кнопку
+            playerBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
+            playerBtn.BorderColor3 = Color3.fromRGB(0,200,0)
+            
+            TeleportConfig.TargetPlayer = player
+            TeleportConfig.SelectedPlayerName = player.Name
+            selectedPlayerLabel.Text = "Выбранный игрок: " .. player.Name
+            print("Выбран игрок: " .. player.Name)
+        end)
+    end
+end
 
-stealthToggleBtn.MouseButton1Click:Connect(function()
-    TeleportConfig.UseStealthMode = not TeleportConfig.UseStealthMode
-    stealthToggleBtn.Text = "Скрытый режим: " .. (TeleportConfig.UseStealthMode and "ВКЛ" or "ВЫКЛ")
-    stealthToggleBtn.BackgroundColor3 = TeleportConfig.UseStealthMode and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
-end)
+-- Создаем список игроков
+createPlayerListInMenu()
+
+-- Принудительная телепортация и кнопка скрытного режима удалены - телепорт всегда работает в скрытном режиме
+
+-- Кнопка возврата удалена - теперь возврат происходит автоматически при остановке телепортации
 
 -- Обновляем GUI при выборе игрока
-guiCallbacks.teleport = selectedPlayerLabel 
+guiCallbacks.teleport = selectedPlayerLabel
+
+-- Функция обновления списка игроков
+local function updatePlayerList()
+    print("ОБНОВЛЕНИЕ СПИСКА ИГРОКОВ...")
+    
+    -- Создаем временный контейнер для нового списка
+    local tempContainer = Instance.new("Frame")
+    tempContainer.Name = "TempPlayerList"
+    tempContainer.Parent = nil -- Не добавляем в GUI пока
+    
+    -- Получаем актуальный список игроков
+    local allPlayers = Players:GetPlayers()
+    local alivePlayers = {}
+    for _, player in ipairs(allPlayers) do
+        if player and player ~= Players.LocalPlayer then
+            table.insert(alivePlayers, player)
+        end
+    end
+    
+    -- Сортируем игроков по алфавиту
+    table.sort(alivePlayers, function(a, b)
+        return a.Name:lower() < b.Name:lower()
+    end)
+    
+    print("Создаем новый список игроков: " .. #alivePlayers .. " игроков")
+    
+    -- Создаем кнопки для каждого игрока во временном контейнере
+    local currentLetter = ""
+    for i, player in ipairs(alivePlayers) do
+        local firstLetter = player.Name:sub(1,1):upper()
+        
+        -- Добавляем разделитель для новой буквы
+        if firstLetter ~= currentLetter then
+            currentLetter = firstLetter
+            
+            -- Создаем заголовок для буквы
+            local letterHeader = Instance.new("TextLabel", tempContainer)
+            letterHeader.Size = UDim2.new(1, -10, 0, 20)
+            letterHeader.Text = "--- " .. firstLetter .. " ---"
+            letterHeader.Font = Enum.Font.GothamBold
+            letterHeader.TextSize = 12
+            letterHeader.TextColor3 = Color3.fromRGB(255,255,0)
+            letterHeader.BackgroundColor3 = Color3.fromRGB(30,30,40)
+            letterHeader.BorderSizePixel = 0
+            letterHeader.TextXAlignment = Enum.TextXAlignment.Center
+            Instance.new("UICorner", letterHeader).CornerRadius = UDim.new(0,4)
+        end
+        
+        local playerBtn = Instance.new("TextButton", tempContainer)
+        playerBtn.Size = UDim2.new(1, -10, 0, 30)
+        playerBtn.Text = player.Name
+        playerBtn.Font = Enum.Font.Gotham
+        playerBtn.TextSize = 12
+        playerBtn.TextColor3 = Color3.new(1,1,1)
+        playerBtn.BackgroundColor3 = Color3.fromRGB(50,50,60)
+        playerBtn.AutoButtonColor = false
+        playerBtn.BorderSizePixel = 1
+        playerBtn.BorderColor3 = Color3.fromRGB(100,100,120)
+        Instance.new("UICorner", playerBtn).CornerRadius = UDim.new(0,4)
+        
+        -- Эффекты при наведении
+        playerBtn.MouseEnter:Connect(function()
+            playerBtn.BackgroundColor3 = Color3.fromRGB(70,70,80)
+            playerBtn.BorderColor3 = Color3.fromRGB(150,150,170)
+        end)
+        
+        playerBtn.MouseLeave:Connect(function()
+            playerBtn.BackgroundColor3 = Color3.fromRGB(50,50,60)
+            playerBtn.BorderColor3 = Color3.fromRGB(100,100,120)
+        end)
+        
+        -- Обработка выбора игрока
+        playerBtn.MouseButton1Click:Connect(function()
+            -- Сбрасываем цвет всех кнопок игроков
+            for _, btn in ipairs(innerContainer:GetChildren()) do
+                if btn:IsA("TextButton") and btn ~= startTeleportBtn and btn ~= stopTeleportBtn and btn ~= updatePlayersBtn then
+                    btn.BackgroundColor3 = Color3.fromRGB(50,50,60)
+                    btn.BorderColor3 = Color3.fromRGB(100,100,120)
+                end
+            end
+            
+            -- Выделяем выбранную кнопку
+            playerBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
+            playerBtn.BorderColor3 = Color3.fromRGB(0,200,0)
+            
+            TeleportConfig.TargetPlayer = player
+            TeleportConfig.SelectedPlayerName = player.Name
+            selectedPlayerLabel.Text = "Выбранный игрок: " .. player.Name
+            print("Выбран игрок: " .. player.Name)
+        end)
+    end
+    
+    -- Теперь безопасно удаляем старые кнопки игроков и заголовки
+    for _, child in ipairs(innerContainer:GetChildren()) do
+        if child:IsA("TextButton") and child ~= startTeleportBtn and child ~= stopTeleportBtn and child ~= updatePlayersBtn then
+            -- Проверяем, что это кнопка игрока
+            if child.Text and child.Text:len() > 0 and not child.Text:find("ОБНОВИТЬ") then
+                child:Destroy()
+            end
+        end
+    end
+    
+    -- Удаляем старые заголовки букв
+    for _, child in ipairs(innerContainer:GetChildren()) do
+        if child:IsA("TextLabel") and child.Text and child.Text:find("---") then
+            child:Destroy()
+        end
+    end
+    
+    -- Перемещаем новые кнопки в основной контейнер
+    for _, child in ipairs(tempContainer:GetChildren()) do
+        child.Parent = innerContainer
+    end
+    
+    -- Удаляем временный контейнер
+    tempContainer:Destroy()
+    
+    print("СПИСОК ИГРОКОВ ОБНОВЛЕН! Найдено игроков: " .. #alivePlayers)
+end
+
+-- Кнопка для обновления списка игроков
+local updatePlayersBtn = Instance.new("TextButton", innerContainer)
+updatePlayersBtn.Size = UDim2.new(1, -10, 0, 28)
+updatePlayersBtn.Text = "ОБНОВИТЬ СПИСОК ИГРОКОВ"
+updatePlayersBtn.Font = Enum.Font.GothamBold
+updatePlayersBtn.TextSize = 14
+updatePlayersBtn.TextColor3 = Color3.new(1,1,1)
+updatePlayersBtn.BackgroundColor3 = Color3.fromRGB(100,150,255)
+updatePlayersBtn.AutoButtonColor = false
+Instance.new("UICorner", updatePlayersBtn).CornerRadius = UDim.new(0,6)
+
+updatePlayersBtn.MouseButton1Click:Connect(function()
+    updatePlayersBtn.Text = "ОБНОВЛЯЕМ..."
+    updatePlayerList()
+    task.wait(1)
+    updatePlayersBtn.Text = "СПИСОК ОБНОВЛЕН!"
+    task.wait(2)
+    updatePlayersBtn.Text = "ОБНОВИТЬ СПИСОК ИГРОКОВ"
+end)
+
+-- Автоматическое обновление списка игроков каждые 30 секунд
+task.spawn(function()
+    while true do
+        task.wait(30) -- Ждем 30 секунд
+        print("АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ СПИСКА ИГРОКОВ...")
+        updatePlayerList()
+    end
+end) 
