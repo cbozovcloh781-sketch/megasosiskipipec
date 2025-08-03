@@ -2049,4 +2049,60 @@ end)
 -- Кнопка возврата удалена - теперь возврат происходит автоматически при остановке телепортации
 
 -- Обновляем GUI при выборе игрока
-guiCallbacks.teleport = selectedPlayerLabel 
+guiCallbacks.teleport = selectedPlayerLabel
+
+-- Функция обновления списка игроков
+local function updatePlayerList()
+    print("ОБНОВЛЕНИЕ СПИСКА ИГРОКОВ...")
+    
+    -- Удаляем старые кнопки игроков
+    for _, child in ipairs(innerContainer:GetChildren()) do
+        if child:IsA("TextButton") and child ~= stealthToggleBtn and child ~= startTeleportBtn and child ~= stopTeleportBtn and child ~= forceTeleportBtn and child ~= updatePlayersBtn then
+            -- Проверяем, что это кнопка игрока
+            if child.Text and child.Text:len() > 0 and not child.Text:find("ОБНОВИТЬ") then
+                child:Destroy()
+            end
+        end
+    end
+    
+    -- Удаляем старые заголовки букв
+    for _, child in ipairs(innerContainer:GetChildren()) do
+        if child:IsA("TextLabel") and child.Text and child.Text:find("---") then
+            child:Destroy()
+        end
+    end
+    
+    -- Создаем новый список игроков
+    createPlayerListInMenu()
+    
+    print("СПИСОК ИГРОКОВ ОБНОВЛЕН! Найдено игроков: " .. #getAlivePlayers())
+end
+
+-- Кнопка для обновления списка игроков
+local updatePlayersBtn = Instance.new("TextButton", innerContainer)
+updatePlayersBtn.Size = UDim2.new(1, -10, 0, 28)
+updatePlayersBtn.Text = "ОБНОВИТЬ СПИСОК ИГРОКОВ"
+updatePlayersBtn.Font = Enum.Font.GothamBold
+updatePlayersBtn.TextSize = 14
+updatePlayersBtn.TextColor3 = Color3.new(1,1,1)
+updatePlayersBtn.BackgroundColor3 = Color3.fromRGB(100,150,255)
+updatePlayersBtn.AutoButtonColor = false
+Instance.new("UICorner", updatePlayersBtn).CornerRadius = UDim.new(0,6)
+
+updatePlayersBtn.MouseButton1Click:Connect(function()
+    updatePlayersBtn.Text = "ОБНОВЛЯЕМ..."
+    updatePlayerList()
+    task.wait(1)
+    updatePlayersBtn.Text = "СПИСОК ОБНОВЛЕН!"
+    task.wait(2)
+    updatePlayersBtn.Text = "ОБНОВИТЬ СПИСОК ИГРОКОВ"
+end)
+
+-- Автоматическое обновление списка игроков каждые 30 секунд
+task.spawn(function()
+    while true do
+        task.wait(30) -- Ждем 30 секунд
+        print("АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ СПИСКА ИГРОКОВ...")
+        updatePlayerList()
+    end
+end) 
